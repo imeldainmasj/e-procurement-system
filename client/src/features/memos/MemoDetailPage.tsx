@@ -28,7 +28,7 @@ export function MemoDetailPage() {
   const m = memo.data;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link
@@ -54,7 +54,7 @@ export function MemoDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <div className="card bg-base-100 shadow-sm xl:col-span-2">
+        <div className="card xl:col-span-2">
           <div className="card-body p-2">
             {pdf.error ? (
               <div role="alert" className="alert alert-error">
@@ -72,7 +72,7 @@ export function MemoDetailPage() {
           </div>
         </div>
         <div className="space-y-4">
-          <div className="card bg-base-100 shadow-sm">
+          <div className="card">
             <div className="card-body gap-2 p-4 text-sm">
               <div>
                 <span className="text-base-content/60">Pengajuan: </span>
@@ -94,7 +94,7 @@ export function MemoDetailPage() {
               </div>
             </div>
           </div>
-          <div className="card bg-base-100 shadow-sm">
+          <div className="card">
             <div className="card-body p-4">
               <h2 className="card-title text-base">Persetujuan</h2>
               <ApprovalSteps steps={m.steps} />

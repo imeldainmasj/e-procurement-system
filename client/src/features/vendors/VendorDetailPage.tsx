@@ -37,7 +37,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function InfoTab({ vendor }: { vendor: VendorDto }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      <div className="card bg-base-100 shadow-sm">
+      <div className="card">
         <div className="card-body p-4">
           <h3 className="card-title text-base">Profil & Kontak</h3>
           <dl className="grid grid-cols-2 gap-3">
@@ -55,7 +55,7 @@ function InfoTab({ vendor }: { vendor: VendorDto }) {
         </div>
       </div>
       <div className="space-y-4">
-        <div className="card bg-base-100 shadow-sm">
+        <div className="card">
           <div className="card-body p-4">
             <h3 className="card-title text-base">Rekening Bank</h3>
             <dl className="grid grid-cols-2 gap-3">
@@ -69,7 +69,7 @@ function InfoTab({ vendor }: { vendor: VendorDto }) {
             </dl>
           </div>
         </div>
-        <div className="card bg-base-100 shadow-sm">
+        <div className="card">
           <div className="card-body p-4">
             <h3 className="card-title text-base">Kategori yang Dipasok</h3>
             {vendor.categories.length === 0 ? (
@@ -103,7 +103,7 @@ function DocumentsTab({ vendor }: { vendor: VendorDto }) {
     fn().catch((err: unknown) => toast.error(getErrorMessage(err)));
 
   return (
-    <div className="card bg-base-100 shadow-sm">
+    <div className="card">
       <div className="card-body p-4">
         <div className="flex items-center justify-between">
           <h3 className="card-title text-base">Dokumen Legal</h3>
@@ -248,7 +248,7 @@ function RatingsTab({ vendor }: { vendor: VendorDto }) {
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-      <div className="card bg-base-100 shadow-sm">
+      <div className="card">
         <div className="card-body gap-3 p-4">
           <h3 className="card-title text-base">Ringkasan</h3>
           <RatingStars value={summary.overall} count={summary.count} size="md" />
@@ -265,7 +265,7 @@ function RatingsTab({ vendor }: { vendor: VendorDto }) {
           </p>
         </div>
       </div>
-      <div className="card bg-base-100 shadow-sm lg:col-span-2">
+      <div className="card lg:col-span-2">
         <div className="card-body p-4">
           <h3 className="card-title text-base">Riwayat Rating</h3>
           {ratings.isPending ? (

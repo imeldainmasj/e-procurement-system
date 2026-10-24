@@ -5,6 +5,7 @@ import {
   Clock,
   type LucideIcon,
   Minus,
+  PiggyBank,
   ShoppingCart,
   TrendingDown,
   TrendingUp,
@@ -62,17 +63,15 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className={cn('card bg-base-100 shadow-sm', className)}>
-      <div className="card-body gap-3 p-4">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <h2 className="card-title text-base">{title}</h2>
-            {description && <p className="text-base-content/60 text-xs">{description}</p>}
-          </div>
-          {actions}
+    <section className={cn('card', className)}>
+      <div className="card-header flex-wrap gap-2">
+        <div>
+          <h2 className="card-title">{title}</h2>
+          {description && <p className="text-base-content/60 text-xs">{description}</p>}
         </div>
-        {children}
+        {actions}
       </div>
+      <div className="p-4">{children}</div>
     </section>
   );
 }
@@ -86,16 +85,29 @@ function QueryState({ error, pending }: { error: unknown; pending: boolean }) {
   );
 }
 
-/** Month-over-month change, with an icon and words so it never relies on colour. */
-function SpendDelta({ current, previous }: { current: number; previous: number }) {
-  if (previous === 0) return <>Belum ada belanja bulan lalu</>;
+/** Month-over-month change: icon + signed % (spoken in words), coloured per Velzon. */
+function SpendTrend({ current, previous }: { current: number; previous: number }) {
+  if (previous === 0) return null;
   const pct = Math.round(((current - previous) / previous) * 100);
   const Icon: LucideIcon = pct > 0 ? TrendingUp : pct < 0 ? TrendingDown : Minus;
+  const words =
+    pct === 0
+      ? 'Sama dengan bulan lalu'
+      : `${pct > 0 ? 'Naik' : 'Turun'} ${Math.abs(pct)}% dari bulan lalu`;
   return (
-    <span className="inline-flex items-center gap-1">
+    <span
+      className={cn(
+        'inline-flex items-center gap-1',
+        pct > 0 ? 'text-success' : pct < 0 ? 'text-error' : 'text-base-content/60',
+      )}
+      title={words}
+    >
       <Icon className="size-3.5" aria-hidden />
-      {pct === 0 ? 'Sama dengan' : `${pct > 0 ? 'Naik' : 'Turun'} ${Math.abs(pct)}% dari`} bulan
-      lalu ({formatRupiah(previous)})
+      <span aria-hidden>
+        {pct > 0 ? '+' : ''}
+        {pct} %
+      </span>
+      <span className="sr-only">{words}</span>
     </span>
   );
 }
@@ -104,20 +116,25 @@ function KpiTiles({ summary }: { summary: DashboardSummaryDto }) {
   const { can } = usePermission();
   const s = summary.spending;
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
       {s && (
         <>
           <StatCard
             label="Belanja Bulan Ini"
             icon={Wallet}
+            tone="secondary"
             value={formatRupiah(s.thisMonth)}
+            trend={<SpendTrend current={Number(s.thisMonth)} previous={Number(s.lastMonth)} />}
             description={
-              <SpendDelta current={Number(s.thisMonth)} previous={Number(s.lastMonth)} />
+              Number(s.lastMonth) === 0
+                ? 'Belum ada belanja bulan lalu'
+                : `Bulan lalu ${formatRupiah(s.lastMonth)}`
             }
           />
           <StatCard
             label="Belanja Tahun Ini"
-            icon={Wallet}
+            icon={PiggyBank}
+            tone="warning"
             value={formatRupiah(s.yearToDate)}
             description={`${s.purchaseOrdersThisMonth} PO terbit bulan ini · termasuk PPN`}
           />
@@ -129,31 +146,35 @@ function KpiTiles({ summary }: { summary: DashboardSummaryDto }) {
         value={summary.activePrs}
         description="Sedang diproses, belum selesai"
         to="/pengajuan"
+        linkLabel="Lihat pengajuan"
       />
       {summary.pendingMyApprovals !== null && (
         <StatCard
           label="Menunggu Persetujuan Saya"
           icon={BadgeCheck}
+          tone="success"
           value={summary.pendingMyApprovals}
-          description={
-            summary.pendingMyApprovals > 0 ? 'Buka inbox persetujuan' : 'Tidak ada antrean'
-          }
+          description={summary.pendingMyApprovals > 0 ? 'Perlu tindakan Anda' : 'Tidak ada antrean'}
           to="/persetujuan"
+          linkLabel="Buka inbox persetujuan"
         />
       )}
       {summary.awaitingStockCheck !== null && (
         <StatCard
           label="Menunggu Cek Stok"
           icon={ClipboardCheck}
+          tone="info"
           value={summary.awaitingStockCheck}
           description="Pengajuan baru untuk dicek gudang"
           to="/pengajuan"
+          linkLabel="Lihat pengajuan"
         />
       )}
       {(can('PROCUREMENT') || summary.pendingMyApprovals === null) && summary.scope === 'all' && (
         <StatCard
           label="Menunggu Penawaran"
           icon={ClipboardList}
+          tone="secondary"
           value={summary.awaitingQuotation}
           description="Disetujui, belum ada PO"
         />
@@ -161,9 +182,11 @@ function KpiTiles({ summary }: { summary: DashboardSummaryDto }) {
       <StatCard
         label="PO Berjalan"
         icon={ShoppingCart}
+        tone="info"
         value={summary.openPurchaseOrders}
         description="Terbit, barang belum diterima lengkap"
         to={can('PROCUREMENT') ? '/purchase-order' : undefined}
+        linkLabel="Lihat purchase order"
       />
     </div>
   );
@@ -252,14 +275,14 @@ function SpendingBreakdown({ year }: { year: number }) {
     <Panel
       title="Komposisi Belanja"
       actions={
-        <div role="tablist" className="tabs tabs-box tabs-xs">
+        <div role="tablist" className="flex gap-1">
           {BREAKDOWNS.map(([key, label]) => (
             <button
               key={key}
               type="button"
               role="tab"
               aria-selected={group === key}
-              className={cn('tab', group === key && 'tab-active')}
+              className={cn('btn btn-xs btn-soft', group === key ? 'btn-primary' : 'btn-secondary')}
               onClick={() => setGroup(key)}
             >
               {label}
@@ -393,7 +416,7 @@ function RecentPrs({ summary }: { summary: DashboardSummaryDto }) {
     <Panel
       title="Pengajuan Terbaru"
       actions={
-        <Link to="/pengajuan" className="link link-hover text-sm">
+        <Link to="/pengajuan" className="btn btn-xs btn-soft btn-primary">
           Lihat semua
         </Link>
       }
@@ -434,11 +457,13 @@ export function DashboardPage() {
   const summary = useDashboardSummary();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Selamat datang, {user?.name}</h1>
-          <p className="text-base-content/70">{formatDate(new Date(), 'dddd, D MMMM YYYY')}</p>
+          <h1 className="text-lg font-semibold">Selamat datang, {user?.name}!</h1>
+          <p className="text-base-content/60 text-sm">
+            {formatDate(new Date(), 'dddd, D MMMM YYYY')}
+          </p>
         </div>
         {analyst && (
           <label className="flex items-center gap-2 text-sm">
@@ -466,11 +491,11 @@ export function DashboardPage() {
 
       {analyst && (
         <>
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
             <MonthlySpending year={year} />
             <SpendingBreakdown year={year} />
           </div>
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
             <VendorPerformance year={year} />
             <LeadTime year={year} />
           </div>
@@ -478,7 +503,7 @@ export function DashboardPage() {
       )}
 
       {summary.data && (
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
           <RecentPrs summary={summary.data} />
           <PrStatusBreakdown summary={summary.data} />
         </div>

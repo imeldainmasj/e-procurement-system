@@ -52,7 +52,7 @@ export function PrApprovalPanel({ pr }: { pr: PrDto }) {
   };
 
   return (
-    <div className="card bg-base-100 shadow-sm">
+    <div className="card">
       <div className="card-body gap-3 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="card-title text-base">Approval</h2>

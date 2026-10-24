@@ -19,8 +19,8 @@ export function PrStatusBadge({ status, className }: { status: PrStatus; classNa
 
 const priorityClass: Record<PrPriority, string> = {
   LOW: 'badge-ghost',
-  MEDIUM: 'badge-neutral badge-outline',
-  HIGH: 'badge-warning badge-outline',
+  MEDIUM: 'badge-soft badge-info',
+  HIGH: 'badge-soft badge-warning',
   URGENT: 'badge-error',
 };
 

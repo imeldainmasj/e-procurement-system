@@ -34,7 +34,7 @@ export function PrProcurementPanel({ pr }: { pr: PrDto }) {
   const po = pr.purchaseOrder;
 
   return (
-    <div className="card bg-base-100 shadow-sm">
+    <div className="card">
       <div className="card-body gap-3 p-4">
         <h2 className="card-title text-base">Pengadaan</h2>
         <div className="flex items-center justify-between gap-2 text-sm">

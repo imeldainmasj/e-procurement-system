@@ -70,150 +70,148 @@ export function DataTable<T>({
   const to = Math.min(params.page * params.limit, total);
 
   return (
-    <div className="card bg-base-100 shadow-sm">
-      <div className="card-body gap-4 p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="input input-sm w-full sm:w-72">
-            <Search className="size-4 opacity-50" />
-            <input
-              type="search"
-              className="grow"
-              placeholder={searchPlaceholder}
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              aria-label="Cari"
-            />
-          </label>
-          {filters}
-          {isFetching && !isLoading && (
-            <span className="loading loading-spinner loading-xs opacity-50" />
-          )}
-        </div>
+    <div className="card">
+      <div className="card-header flex-wrap justify-start gap-2">
+        <label className="input input-sm w-full sm:w-72">
+          <Search className="size-4 opacity-50" />
+          <input
+            type="search"
+            className="grow"
+            placeholder={searchPlaceholder}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            aria-label="Cari"
+          />
+        </label>
+        {filters}
+        {isFetching && !isLoading && (
+          <span className="loading loading-spinner loading-xs opacity-50" />
+        )}
+      </div>
 
-        {error ? (
+      {error ? (
+        <div className="p-4">
           <div role="alert" className="alert alert-error">
             <span>{getErrorMessage(error)}</span>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="table table-sm">
-              <thead>
-                {table.getHeaderGroups().map((group) => (
-                  <tr key={group.id}>
-                    {group.headers.map((header) => {
-                      const columnId = header.column.id;
-                      const canSort = header.column.columnDef.enableSorting === true;
-                      const dir =
-                        params.sort === `${columnId}:asc`
-                          ? 'asc'
-                          : params.sort === `${columnId}:desc`
-                            ? 'desc'
-                            : false;
-                      const label = flexRender(header.column.columnDef.header, header.getContext());
-                      return (
-                        <th
-                          key={header.id}
-                          aria-sort={dir ? (dir === 'asc' ? 'ascending' : 'descending') : undefined}
-                        >
-                          {canSort ? (
-                            <button
-                              type="button"
-                              className="flex items-center gap-1 hover:underline"
-                              onClick={() =>
-                                onParamsChange({ sort: nextSort(columnId, params.sort) })
-                              }
-                            >
-                              {label}
-                              {dir === 'asc' ? (
-                                <ArrowUp className="size-3" />
-                              ) : dir === 'desc' ? (
-                                <ArrowDown className="size-3" />
-                              ) : (
-                                <ArrowUpDown className="size-3 opacity-30" />
-                              )}
-                            </button>
-                          ) : (
-                            label
-                          )}
-                        </th>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </thead>
-              <tbody>
-                {isLoading
-                  ? Array.from({ length: 5 }, (_, i) => (
-                      <tr key={i}>
-                        {columns.map((_c, j) => (
-                          <td key={j}>
-                            <div className="skeleton h-4 w-full" />
-                          </td>
-                        ))}
-                      </tr>
-                    ))
-                  : table.getRowModel().rows.map((row) => (
-                      <tr key={row.id} className="hover:bg-base-200/50">
-                        {row.getVisibleCells().map((cell) => (
-                          <td key={cell.id}>
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-              </tbody>
-            </table>
-            {!isLoading && total === 0 && (
-              <EmptyState
-                title={
-                  emptyTitle ?? (params.search ? 'Tidak ada data yang cocok' : 'Belum ada data')
-                }
-                {...(params.search && { description: `Pencarian: "${params.search}"` })}
-              />
-            )}
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-          <span className="text-base-content/70">
-            Menampilkan {from}–{to} dari {total} data
-          </span>
-          <div className="flex items-center gap-2">
-            <select
-              className="select select-sm w-auto"
-              value={params.limit}
-              onChange={(e) => onParamsChange({ limit: Number(e.target.value) })}
-              aria-label="Jumlah baris per halaman"
-            >
-              {PAGE_SIZES.map((size) => (
-                <option key={size} value={size}>
-                  {size} / halaman
-                </option>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="table table-sm">
+            <thead className="bg-base-200/60 text-base-content/60 text-xs uppercase">
+              {table.getHeaderGroups().map((group) => (
+                <tr key={group.id}>
+                  {group.headers.map((header) => {
+                    const columnId = header.column.id;
+                    const canSort = header.column.columnDef.enableSorting === true;
+                    const dir =
+                      params.sort === `${columnId}:asc`
+                        ? 'asc'
+                        : params.sort === `${columnId}:desc`
+                          ? 'desc'
+                          : false;
+                    const label = flexRender(header.column.columnDef.header, header.getContext());
+                    return (
+                      <th
+                        key={header.id}
+                        aria-sort={dir ? (dir === 'asc' ? 'ascending' : 'descending') : undefined}
+                      >
+                        {canSort ? (
+                          <button
+                            type="button"
+                            className="flex items-center gap-1 hover:underline"
+                            onClick={() =>
+                              onParamsChange({ sort: nextSort(columnId, params.sort) })
+                            }
+                          >
+                            {label}
+                            {dir === 'asc' ? (
+                              <ArrowUp className="size-3" />
+                            ) : dir === 'desc' ? (
+                              <ArrowDown className="size-3" />
+                            ) : (
+                              <ArrowUpDown className="size-3 opacity-30" />
+                            )}
+                          </button>
+                        ) : (
+                          label
+                        )}
+                      </th>
+                    );
+                  })}
+                </tr>
               ))}
-            </select>
-            <div className="join">
-              <button
-                type="button"
-                className="join-item btn btn-sm"
-                disabled={params.page <= 1}
-                onClick={() => onParamsChange({ page: params.page - 1 })}
-                aria-label="Halaman sebelumnya"
-              >
-                <ChevronLeft className="size-4" />
-              </button>
-              <span className={cn('join-item btn btn-sm pointer-events-none')}>
-                {params.page} / {pageCount}
-              </span>
-              <button
-                type="button"
-                className="join-item btn btn-sm"
-                disabled={params.page >= pageCount}
-                onClick={() => onParamsChange({ page: params.page + 1 })}
-                aria-label="Halaman berikutnya"
-              >
-                <ChevronRight className="size-4" />
-              </button>
-            </div>
+            </thead>
+            <tbody>
+              {isLoading
+                ? Array.from({ length: 5 }, (_, i) => (
+                    <tr key={i}>
+                      {columns.map((_c, j) => (
+                        <td key={j}>
+                          <div className="skeleton h-4 w-full" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                : table.getRowModel().rows.map((row) => (
+                    <tr key={row.id} className="hover:bg-base-200/40">
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+            </tbody>
+          </table>
+          {!isLoading && total === 0 && (
+            <EmptyState
+              title={emptyTitle ?? (params.search ? 'Tidak ada data yang cocok' : 'Belum ada data')}
+              {...(params.search && { description: `Pencarian: "${params.search}"` })}
+            />
+          )}
+        </div>
+      )}
+
+      <div className="border-base-300 flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3 text-sm">
+        <span className="text-base-content/60">
+          Menampilkan {from}–{to} dari {total} data
+        </span>
+        <div className="flex items-center gap-2">
+          <select
+            className="select select-sm w-auto"
+            value={params.limit}
+            onChange={(e) => onParamsChange({ limit: Number(e.target.value) })}
+            aria-label="Jumlah baris per halaman"
+          >
+            {PAGE_SIZES.map((size) => (
+              <option key={size} value={size}>
+                {size} / halaman
+              </option>
+            ))}
+          </select>
+          <div className="join">
+            <button
+              type="button"
+              className="join-item btn btn-sm"
+              disabled={params.page <= 1}
+              onClick={() => onParamsChange({ page: params.page - 1 })}
+              aria-label="Halaman sebelumnya"
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+            <span className={cn('join-item btn btn-sm pointer-events-none')}>
+              {params.page} / {pageCount}
+            </span>
+            <button
+              type="button"
+              className="join-item btn btn-sm"
+              disabled={params.page >= pageCount}
+              onClick={() => onParamsChange({ page: params.page + 1 })}
+              aria-label="Halaman berikutnya"
+            >
+              <ChevronRight className="size-4" />
+            </button>
           </div>
         </div>
       </div>

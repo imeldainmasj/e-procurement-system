@@ -89,7 +89,7 @@ export function WarehousesPage() {
         actions={
           <button
             type="button"
-            className="btn btn-primary btn-sm"
+            className="btn btn-soft btn-secondary btn-sm"
             onClick={() => setEditing('new')}
           >
             <Plus className="size-4" /> Tambah Gudang

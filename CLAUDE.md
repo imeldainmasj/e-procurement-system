@@ -27,7 +27,7 @@ Mata uang: **IDR** (format `Rp 1.250.000`). Zona waktu: **Asia/Jakarta**.
 ### Frontend (`/client`)
 - **React 18 + Vite** (TypeScript)
 - **TailwindCSS v4** via `@tailwindcss/vite`
-- **DaisyUI v5** (`@plugin "daisyui";` di file CSS utama). Tema: `corporate` (light) & `business` (dark)
+- **DaisyUI v5** (`@plugin "daisyui";` di file CSS utama). Tema custom: **`velzon`** (light, default) & **`velzon-dark`** (dark) — gaya visual mengikuti template admin Velzon (lihat bagian 8 → *Tema & Desain Visual*)
 - **React Router v6** (data router: `createBrowserRouter`)
 - **TanStack Query v5** untuk data fetching & cache
 - **React Hook Form + Zod** untuk form & validasi
@@ -65,6 +65,10 @@ Mata uang: **IDR** (format `Rp 1.250.000`). Zona waktu: **Asia/Jakarta**.
 ```
 sipita/
 ├── CLAUDE.md
+├── docs/
+│   └── design/
+│       ├── velzon-reference.png    # screenshot acuan visual (WAJIB dilihat sebelum membuat halaman baru)
+│       └── velzon-preview.html     # contoh pola komponen dengan tema velzon
 ├── docker-compose.yml          # postgres + pgadmin
 ├── package.json                # npm workspaces
 ├── shared/                     # tipe & zod schema yang dipakai client + server
@@ -109,7 +113,8 @@ sipita/
 └── client/
     └── src/
         ├── main.tsx
-        ├── index.css           # @import "tailwindcss"; @plugin "daisyui";
+        ├── index.css           # entry CSS: @import "tailwindcss"; @plugin "daisyui";
+        │                       # + definisi tema velzon & velzon-dark + komponen kustom
         ├── router.tsx
         ├── api/                # axios instance + fungsi API per modul
         ├── hooks/              # useAuth, usePermission, query hooks per modul
@@ -118,7 +123,7 @@ sipita/
         │   ├── layout/         # AppLayout, Sidebar, Navbar, Breadcrumb
         │   ├── ui/             # DataTable, StatusBadge, ConfirmModal, FileUpload,
         │   │                   # CurrencyInput, EmptyState, PageHeader, StatCard
-        │   └── charts/
+        │   └── charts/         # chartColors.ts + wrapper Recharts
         ├── features/           # satu folder per modul (pages + komponen spesifik)
         │   ├── auth/
         │   ├── dashboard/
@@ -308,7 +313,7 @@ Setiap perubahan status PR/Memo/PO/Kontrak/Aset **wajib** menulis `AuditLog`.
 
 - Layout: **sidebar** (DaisyUI `drawer` + `menu`) + **navbar** (notifikasi bell, toggle tema, profil). Responsif — sidebar jadi drawer di mobile.
 - Gunakan komponen DaisyUI sebagai dasar: `btn`, `card`, `table`, `badge`, `modal`, `input`, `select`, `textarea`, `steps`, `stats`, `tabs`, `alert`, `toast`, `loading`, `drawer`, `menu`, `dropdown`, `timeline`.
-- Warna badge status konsisten via satu komponen `StatusBadge` + map:
+- Warna badge status konsisten via satu komponen `StatusBadge` + map (gunakan varian `badge-soft` agar sesuai gaya Velzon):
   - Draft → `badge-ghost`, Pending/Submitted → `badge-warning`, Approved/Active/Available → `badge-success`, Rejected/Expired/Broken → `badge-error`, PO Issued/In Use → `badge-info`, Completed → `badge-primary`
 - Halaman detail PR menampilkan **timeline** (DaisyUI `timeline` / `steps`) dari alur status & riwayat approval.
 - Form uang memakai `CurrencyInput` (tampilan `Rp 1.250.000`, value number).
@@ -317,6 +322,131 @@ Setiap perubahan status PR/Memo/PO/Kontrak/Aset **wajib** menulis `AuditLog`.
 - Konfirmasi aksi penting (submit, approve, reject, cancel, issue PO) memakai `ConfirmModal`. Reject wajib isi alasan.
 - Query key TanStack Query: `['purchase-requests', params]`, `['purchase-requests', id]` — invalidate setelah mutasi.
 - Semua teks UI dalam Bahasa Indonesia.
+
+### Tema & Desain Visual (Velzon)
+
+Seluruh UI mengikuti tampilan template admin **Velzon**: flat, bersih, kartu putih di atas latar off-white hangat, radius kecil, aksen indigo.
+**Sebelum membuat halaman/komponen baru, lihat `docs/design/velzon-reference.png`** dan contoh pola di `docs/design/velzon-preview.html`.
+
+**Setup tema** — `client/src/index.css` adalah satu-satunya entry CSS dan berisi:
+
+```css
+@import "tailwindcss";
+@plugin "daisyui";
+
+@plugin "daisyui/theme" {
+  name: "velzon";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+  --color-base-100: #ffffff;   /* card, sidebar, navbar */
+  --color-base-200: #f9f6f3;   /* latar halaman */
+  --color-base-300: #e9ebec;   /* border, divider */
+  --color-base-content: #212529;
+  --color-primary: #687cfe;    --color-primary-content: #ffffff;
+  --color-secondary: #ff7f5d;  --color-secondary-content: #ffffff;
+  --color-accent: #0ac7fb;     --color-accent-content: #ffffff;
+  --color-neutral: #343a40;    --color-neutral-content: #f8f9fa;
+  --color-info: #0ac7fb;       --color-info-content: #ffffff;
+  --color-success: #3cd188;    --color-success-content: #ffffff;
+  --color-warning: #efae4e;    --color-warning-content: #ffffff;
+  --color-error: #f7666e;      --color-error-content: #ffffff;
+  --radius-selector: 0.25rem; --radius-field: 0.25rem; --radius-box: 0.25rem;
+  --size-selector: 0.25rem;   --size-field: 0.25rem;
+  --border: 1px; --depth: 0; --noise: 0;
+}
+
+@plugin "daisyui/theme" {
+  name: "velzon-dark";
+  default: false;
+  prefersdark: true;
+  color-scheme: dark;
+  --color-base-100: #212529;
+  --color-base-200: #1a1d21;
+  --color-base-300: #32383e;
+  --color-base-content: #ced4da;
+  --color-primary: #7a8cff;    --color-primary-content: #ffffff;
+  --color-secondary: #ff8f71;  --color-secondary-content: #ffffff;
+  --color-accent: #2fd0fc;     --color-accent-content: #0b1a20;
+  --color-neutral: #2a2f34;    --color-neutral-content: #ced4da;
+  --color-info: #2fd0fc;       --color-info-content: #0b1a20;
+  --color-success: #3cd188;    --color-success-content: #0b1f15;
+  --color-warning: #efae4e;    --color-warning-content: #231806;
+  --color-error: #f7666e;      --color-error-content: #ffffff;
+  --radius-selector: 0.25rem; --radius-field: 0.25rem; --radius-box: 0.25rem;
+  --size-selector: 0.25rem;   --size-field: 0.25rem;
+  --border: 1px; --depth: 0; --noise: 0;
+}
+
+@theme {
+  --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --shadow-velzon: 0 1px 2px rgba(56, 65, 74, 0.15);
+}
+
+@layer components {
+  .card { @apply bg-base-100 shadow-velzon; }
+  .card-header { @apply flex items-center justify-between px-4 py-3 border-b border-base-300; }
+  .card-header .card-title { @apply text-base font-semibold; }
+  .stat-label { @apply text-sm font-medium uppercase tracking-wide text-base-content/60; }
+  .icon-soft {
+    @apply inline-flex items-center justify-center size-12 rounded;
+    background: color-mix(in oklab, currentColor 15%, transparent);
+  }
+  .menu-velzon .menu-title { @apply text-xs font-semibold uppercase tracking-wider text-base-content/50; }
+}
+
+/* daisyUI 5 menaruh komponennya di @layer utilities → override state-nya harus di luar layer. */
+.menu-velzon {
+  /* aria-current="page" dari NavLink dianggap aktif oleh daisyUI; jadikan flat, bukan neutral. */
+  --menu-active-bg: transparent;
+  --menu-active-fg: var(--color-primary);
+}
+.menu-velzon li > a { color: color-mix(in oklab, var(--color-base-content) 70%, transparent); }
+.menu-velzon li > a:hover,
+.menu-velzon li > a:focus-visible { background-color: transparent; color: var(--color-primary); }
+.menu-velzon li > a.active { background-color: transparent; color: var(--color-primary); font-weight: 500; }
+
+/* Fokus ala Velzon: ring tipis primary, bukan outline tebal base-content bawaan daisyUI. */
+:is(.input, .select, .textarea):is(:focus, :focus-within) {
+  --input-color: color-mix(in oklab, var(--color-primary) 60%, transparent);
+  outline-width: 1px;
+  outline-offset: 0;
+}
+```
+
+- **Penting:** override untuk state komponen daisyUI (aktif, hover, fokus) taruh **di luar** `@layer`. Di dalam `@layer components`, override itu kalah prioritas dari daisyUI. Untuk menu aktif, pakai variabel `--menu-active-bg` / `--menu-active-fg`.
+
+- Font **Hanken Grotesk** dimuat via `<link>` Google Fonts di `client/index.html` (bukan `@import url()` di CSS, karena `@import` harus di paling atas).
+- `<html data-theme="velzon">` di `client/index.html`. `themeStore` (Zustand, persist ke `localStorage`) hanya men-toggle `velzon` ↔ `velzon-dark` dengan mengubah `document.documentElement.dataset.theme`. Default mengikuti `prefers-color-scheme`.
+- **Jangan** memakai tema bawaan DaisyUI lain (`corporate`, `business`, dll.).
+
+**Peran warna**
+
+| Token | Dipakai untuk |
+|---|---|
+| `primary` (indigo) | link, menu aktif, tombol aksi utama, seri grafik utama |
+| `secondary` (coral) | aksi "Tambah …"/"Buat …", chip filter periode (Semua / 1B / 6B / 1T) |
+| `accent` (cyan) | badge jumlah notifikasi/keranjang, tombol floating |
+| `success` / `error` | kenaikan / penurunan %, badge "Baru" / "Penting" |
+| `warning` | sorotan anggaran/saldo, item mendekati stok minimum |
+| `base-200` | latar halaman; `base-100` = card/sidebar/navbar; `base-300` = border |
+
+**Aturan styling (wajib)**
+- Hanya pakai token tema (`bg-base-100`, `text-primary`, `btn-secondary`, `border-base-300`, …). **Dilarang** hardcode hex atau palet Tailwind (`blue-500`, `gray-100`, `#687cfe`) di komponen.
+- Radius tetap kecil (dari tema). Hindari `rounded-xl`/`rounded-2xl`, shadow tebal (`shadow-lg` hanya untuk dropdown/modal/FAB), dan gradient.
+- Tombol: aksi utama `btn btn-primary`; aksi sekunder pakai varian soft (`btn btn-soft btn-secondary`, `btn btn-sm btn-soft btn-primary`); aksi berbahaya `btn btn-error` / `btn-soft btn-error`.
+- Tidak menambah UI library lain (shadcn, MUI, Bootstrap) dan tidak mengubah token tema tanpa diminta.
+
+**Pola komponen**
+- **AppLayout:** `drawer lg:drawer-open`. Sidebar `bg-base-100 w-60 border-r border-base-300`, logo "SIPITA" di atas (tinggi sama dengan navbar), `menu menu-velzon` dengan `menu-title` per grup (Menu, Pengadaan, Gudang, Pengaturan), ikon lucide 18px. Navbar `navbar bg-base-100 border-b border-base-300 sticky top-0`: tombol hamburger, search `input input-sm bg-base-200 border-0`, lalu di kanan: toggle tema, bell notifikasi (`indicator` + `badge badge-error badge-xs`), blok profil (avatar + nama + role) dengan latar `bg-base-200`. Konten: `p-6 space-y-6` di atas `bg-base-200`.
+- **PageHeader:** judul `text-lg font-semibold` + subjudul `text-sm text-base-content/60` di kiri; filter tanggal & tombol aksi di kanan.
+- **StatCard (KPI dashboard):** `card p-4`. Baris atas: `.stat-label` + persentase perubahan (`text-success` dengan ikon `TrendingUp` / `text-error` dengan `TrendingDown`). Nilai besar `text-2xl font-semibold`, link `link link-primary text-sm` di bawahnya, dan `.icon-soft text-{warna}` di kanan bawah. Grid `grid gap-6 sm:grid-cols-2 xl:grid-cols-4`.
+- **Card dengan header:** `card` → `.card-header` (judul + tombol `btn-xs btn-soft`) → isi. Strip ringkasan di dalam card: `grid divide-x divide-dashed divide-base-300 bg-base-200/60 text-center`.
+- **DataTable:** dibungkus `card`; toolbar (search + filter + export) di `.card-header`; `table` dengan header `text-xs uppercase text-base-content/60 bg-base-200/60`; baris hover `hover:bg-base-200/40`; pagination `join` di footer.
+- **Form:** di dalam `card`, `fieldset` + `label` DaisyUI, input ukuran default, tombol simpan di kanan bawah.
+- **Grafik (Recharts):** ambil warna dari CSS variable lewat `components/charts/chartColors.ts` (mis. `getComputedStyle(document.documentElement).getPropertyValue('--color-primary')`), urutan seri: primary → success → warning → secondary → info. Bar ramping (`barSize` ±16), grid dashed `var(--color-base-300)`, teks sumbu `text-base-content/60`. Re-render saat tema berganti.
+
+---
 
 ### Halaman
 | Path | Halaman | Role |
@@ -335,6 +465,8 @@ Setiap perubahan status PR/Memo/PO/Kontrak/Aset **wajib** menulis `AuditLog`.
 | `/harga` | Riwayat & tren harga item | PROCUREMENT, VIEWER |
 | `/anggaran` | Anggaran vs realisasi | PROCUREMENT, VIEWER |
 | `/pengaturan/*` | User, divisi, katalog item, aturan approval, gudang | SUPER_ADMIN |
+
+Halaman **Login**: layout terpisah (tanpa sidebar), card login di tengah di atas `bg-base-200`, logo + nama aplikasi di atas form.
 
 ---
 
@@ -429,8 +561,8 @@ npm run build -w client
 
 ## 13. Tahapan Pengerjaan (kerjakan berurutan)
 
-1. **Setup** — monorepo, Docker Postgres, Vite + Tailwind v4 + DaisyUI v5, Express + Prisma, ESLint/Prettier, `shared` package
-2. **Auth & RBAC** — login, refresh token, logout, middleware role, layout + sidebar dinamis per role
+1. **Setup** — monorepo, Docker Postgres, Vite + Tailwind v4 + DaisyUI v5 **dengan tema `velzon` / `velzon-dark`** (bagian 8), font Hanken Grotesk, Express + Prisma, ESLint/Prettier, `shared` package
+2. **Auth & RBAC** — login, refresh token, logout, middleware role, layout Velzon (sidebar + navbar) dengan menu dinamis per role, toggle tema
 3. **Master data** — divisi, user, kategori, item, gudang, aturan approval (halaman Pengaturan)
 4. **Purchase Request** — CRUD, submit, cek stok, penomoran otomatis
 5. **Memo & Approval** — generate memo, approval berjenjang, inbox approver, notifikasi, PDF memo
@@ -439,7 +571,7 @@ npm run build -w client
 8. **Gudang & Aset** — goods receipt (parsial), stok, mutasi, aset, serah terima/pengembalian
 9. **Kontrak** — CRUD, upload dokumen, reminder jatuh tempo
 10. **Anggaran** — input anggaran, realisasi
-11. **Dashboard** — KPI cards, grafik, widget per role
+11. **Dashboard** — KPI cards (pola StatCard Velzon), grafik, widget per role
 12. **Job terjadwal & email**
 13. **Audit log viewer, export CSV, polish UI, test**
 
@@ -456,4 +588,5 @@ Selesaikan & uji satu tahap sebelum lanjut. Setelah tiap tahap, jalankan lint + 
 - Ambang approval, reminder days, dan pengaturan lain disimpan di database/konfigurasi — **jangan hardcode**.
 - Pesan error & validasi untuk user dalam Bahasa Indonesia.
 - Jangan commit file `.env` atau folder `uploads/`.
+- **UI wajib mengikuti bagian 8 → Tema & Desain Visual (Velzon).** Sebelum membuat halaman baru, lihat `docs/design/velzon-reference.png`. Jangan hardcode warna; gunakan token tema DaisyUI.
 - Jika ada ambiguitas pada aturan bisnis, tanyakan dulu sebelum mengimplementasikan.

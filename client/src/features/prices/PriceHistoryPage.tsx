@@ -39,7 +39,7 @@ import { ItemPicker } from '../purchase-requests/components/ItemPicker';
 
 /**
  * One line per vendor over time. Vendors get colour slots by vendor code (not by price
- * rank), so a vendor keeps its colour; beyond 8 vendors only the most frequent are drawn.
+ * rank), so a vendor keeps its colour; beyond SERIES_SLOTS vendors only the most frequent are drawn.
  */
 function PriceTrendChart({ summary }: { summary: PriceSummaryDto }) {
   const vendors = useMemo(() => {
@@ -130,7 +130,7 @@ function ItemSummary({ itemId }: { itemId: string }) {
   const s = summary.data;
   if (s.stats.count === 0) {
     return (
-      <div className="card bg-base-100 shadow-sm">
+      <div className="card">
         <div className="card-body">
           <EmptyState
             title="Belum ada riwayat harga"
@@ -149,7 +149,7 @@ function ItemSummary({ itemId }: { itemId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="stats stats-vertical sm:stats-horizontal bg-base-100 w-full shadow-sm">
+      <div className="stats stats-vertical sm:stats-horizontal bg-base-100 w-full shadow-velzon">
         {tiles.map(([label, value]) => (
           <div key={label} className="stat">
             <div className="stat-title">{label}</div>
@@ -163,13 +163,13 @@ function ItemSummary({ itemId }: { itemId: string }) {
         ))}
       </div>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <div className="card bg-base-100 shadow-sm xl:col-span-2">
+        <div className="card xl:col-span-2">
           <div className="card-body p-4">
             <h2 className="card-title text-base">Tren Harga per Vendor (24 bulan)</h2>
             <PriceTrendChart summary={s} />
           </div>
         </div>
-        <div className="card bg-base-100 shadow-sm">
+        <div className="card">
           <div className="card-body p-4">
             <h2 className="card-title text-base">Per Vendor</h2>
             <div className="overflow-x-auto">
@@ -272,12 +272,12 @@ export function PriceHistoryPage() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <PageHeader
         title="Riwayat Harga"
         description="Harga item katalog dari penawaran vendor dan Purchase Order yang terbit."
       />
-      <div className="card bg-base-100 shadow-sm">
+      <div className="card">
         <div className="card-body flex-row flex-wrap items-center gap-2 p-4">
           <span className="text-sm font-medium">Item:</span>
           <div className="w-full sm:w-96">

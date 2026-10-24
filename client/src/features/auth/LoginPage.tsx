@@ -56,7 +56,7 @@ export function LoginPage() {
           <p className="text-base-content/70">Sistem Informasi Pengadaan IT & Aset</p>
         </div>
 
-        <div className="card bg-base-100 shadow-md">
+        <div className="card">
           <form className="card-body gap-4" onSubmit={onSubmit} noValidate>
             <h2 className="card-title">Masuk</h2>
 
@@ -112,7 +112,7 @@ export function LoginPage() {
         </div>
 
         {import.meta.env.DEV && (
-          <div className="collapse-arrow bg-base-100 collapse shadow-sm">
+          <div className="collapse-arrow bg-base-100 shadow-velzon collapse">
             <input type="checkbox" aria-label="Tampilkan akun demo" />
             <div className="collapse-title text-sm font-medium">Akun demo (mode pengembangan)</div>
             <div className="collapse-content">

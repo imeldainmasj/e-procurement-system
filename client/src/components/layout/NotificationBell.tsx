@@ -30,7 +30,7 @@ export function NotificationBell() {
     <div className="dropdown dropdown-end">
       <button
         type="button"
-        className="btn btn-ghost btn-circle"
+        className="btn btn-ghost btn-square btn-sm"
         aria-label={count > 0 ? `Notifikasi, ${count} belum dibaca` : 'Notifikasi'}
         onClick={() => setOpen(true)}
         onFocus={() => setOpen(true)}
@@ -38,13 +38,13 @@ export function NotificationBell() {
         <div className="indicator">
           <Bell className="size-5" />
           {count > 0 && (
-            <span className="badge badge-xs badge-error indicator-item">
+            <span className="badge badge-xs badge-error indicator-item rounded-full">
               {count > 99 ? '99+' : count}
             </span>
           )}
         </div>
       </button>
-      <div className="dropdown-content card card-sm bg-base-100 z-20 mt-3 w-80 shadow-lg">
+      <div className="dropdown-content card card-sm border-base-300 z-20 mt-3 w-80 border shadow-lg">
         <div className="card-body gap-2">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">Notifikasi</h3>

@@ -149,7 +149,7 @@ function PrForm({ pr }: { pr: PrDto | undefined }) {
       <form onSubmit={onSaveDraft} noValidate className="space-y-4">
         <FormError error={create.error ?? update.error} />
 
-        <div className="card bg-base-100 shadow-sm">
+        <div className="card">
           <div className="card-body grid grid-cols-1 gap-x-4 p-4 md:grid-cols-3">
             <FormField
               label="Judul Pengajuan"
@@ -197,7 +197,7 @@ function PrForm({ pr }: { pr: PrDto | undefined }) {
           </div>
         </div>
 
-        <div className="card bg-base-100 shadow-sm">
+        <div className="card">
           <div className="card-body gap-4 p-4">
             <h2 className="card-title text-base">Daftar Item</h2>
             <PrItemsEditor

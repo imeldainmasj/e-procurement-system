@@ -7,9 +7,9 @@ export function AppLayout() {
   return (
     <div className="drawer lg:drawer-open">
       <input id="app-drawer" type="checkbox" className="drawer-toggle" />
-      <div className="drawer-content flex min-h-screen flex-col">
+      <div className="drawer-content bg-base-200 flex min-h-screen min-w-0 flex-col">
         <Navbar />
-        <main className="flex-1 p-4 lg:p-6">
+        <main className="flex-1 space-y-6 p-4 sm:p-6">
           <Outlet />
         </main>
       </div>

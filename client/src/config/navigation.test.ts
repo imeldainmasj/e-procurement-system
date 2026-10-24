@@ -26,6 +26,6 @@ describe('getVisibleNav', () => {
   });
 
   it('drops empty sections', () => {
-    expect(getVisibleNav(['APPROVER']).map((s) => s.title)).toEqual(['Utama', 'Pengadaan']);
+    expect(getVisibleNav(['APPROVER']).map((s) => s.title)).toEqual(['Menu', 'Pengadaan']);
   });
 });

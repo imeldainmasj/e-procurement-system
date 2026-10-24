@@ -35,7 +35,7 @@ function SettingsForm({ settings }: { settings: SettingsDto }) {
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-4">
       <FormError error={update.error} />
-      <div className="card bg-base-100 shadow-sm">
+      <div className="card">
         <div className="card-body p-4">
           <h2 className="card-title text-base">Identitas Perusahaan</h2>
           <p className="text-base-content/60 text-sm">Ditampilkan di kop dan alamat kirim PO.</p>
@@ -53,7 +53,7 @@ function SettingsForm({ settings }: { settings: SettingsDto }) {
           </div>
         </div>
       </div>
-      <div className="card bg-base-100 shadow-sm">
+      <div className="card">
         <div className="card-body p-4">
           <h2 className="card-title text-base">Pengadaan</h2>
           <div className="grid grid-cols-1 gap-x-4 md:grid-cols-2">

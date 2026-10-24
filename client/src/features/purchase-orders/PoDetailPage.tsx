@@ -87,7 +87,7 @@ function RatingModal({ po, onClose }: { po: PoDto; onClose: () => void }) {
                   key={n}
                   type="radio"
                   name={`rating-${key}`}
-                  className="mask mask-star-2 bg-amber-400"
+                  className="mask mask-star-2 bg-warning"
                   aria-label={`${n} bintang`}
                   checked={scores[key] === n}
                   onChange={() => setScores((s) => ({ ...s, [key]: n }))}
@@ -148,7 +148,7 @@ export function PoDetailPage() {
   const ratable = PO_RATABLE_STATUSES.includes(po.status) && !po.rating;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link
@@ -232,7 +232,7 @@ export function PoDetailPage() {
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
         <div className="space-y-4 xl:col-span-2">
-          <div className="card bg-base-100 shadow-sm">
+          <div className="card">
             <div className="card-body p-4">
               <dl className="grid grid-cols-2 gap-3">
                 <Info label="Pengajuan">
@@ -267,7 +267,7 @@ export function PoDetailPage() {
             </div>
           </div>
 
-          <div className="card bg-base-100 shadow-sm">
+          <div className="card">
             <div className="card-body p-4">
               <h2 className="card-title text-base">Item</h2>
               <div className="overflow-x-auto">
@@ -327,7 +327,7 @@ export function PoDetailPage() {
             </div>
           </div>
 
-          <div className="card bg-base-100 shadow-sm">
+          <div className="card">
             <div className="card-body gap-2 p-4">
               <h2 className="card-title text-base">Rating Vendor</h2>
               {po.rating ? (
@@ -356,7 +356,7 @@ export function PoDetailPage() {
           </div>
         </div>
 
-        <div className="card bg-base-100 shadow-sm xl:col-span-3">
+        <div className="card xl:col-span-3">
           <div className="card-body p-2">
             {pdf.error ? (
               <div role="alert" className="alert alert-error">

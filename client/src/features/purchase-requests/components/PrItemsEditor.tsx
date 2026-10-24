@@ -158,7 +158,7 @@ export function PrItemsEditor({ control, register, setValue, errors }: Props) {
       })}
       <button
         type="button"
-        className="btn btn-outline btn-sm"
+        className="btn btn-soft btn-secondary btn-sm"
         onClick={() => append(emptyItemRow())}
         disabled={fields.length >= 50}
       >

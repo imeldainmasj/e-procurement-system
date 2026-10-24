@@ -27,7 +27,7 @@ export function PrDetailPage() {
 
   if (prQuery.isPending) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div className="skeleton h-10 w-1/2" />
         <div className="skeleton h-24 w-full" />
         <div className="skeleton h-64 w-full" />
@@ -53,7 +53,7 @@ export function PrDetailPage() {
       : null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link
@@ -72,7 +72,7 @@ export function PrDetailPage() {
         <PrActions pr={pr} />
       </div>
 
-      <div className="card bg-base-100 shadow-sm">
+      <div className="card">
         <div className="card-body p-4">
           <PrSteps status={pr.status} cancelledFrom={cancelledFrom} />
         </div>
@@ -104,7 +104,7 @@ export function PrDetailPage() {
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="space-y-4 xl:col-span-2">
-          <div className="card bg-base-100 shadow-sm">
+          <div className="card">
             <div className="card-body p-4">
               <dl className="grid grid-cols-2 gap-4 md:grid-cols-4">
                 <Info label="Pemohon">{pr.requester.name}</Info>
@@ -121,7 +121,7 @@ export function PrDetailPage() {
             </div>
           </div>
 
-          <div className="card bg-base-100 shadow-sm">
+          <div className="card">
             <div className="card-body p-4">
               <h2 className="card-title text-base">Daftar Item</h2>
               <div className="overflow-x-auto">
@@ -178,7 +178,7 @@ export function PrDetailPage() {
         <div className="space-y-4">
           <PrProcurementPanel pr={pr} />
           <PrApprovalPanel pr={pr} />
-          <div className="card bg-base-100 shadow-sm">
+          <div className="card">
             <div className="card-body p-4">
               <h2 className="card-title text-base">Riwayat</h2>
               {historyQuery.isPending ? (

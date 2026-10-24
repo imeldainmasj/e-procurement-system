@@ -1,6 +1,9 @@
 import { cn } from '@/utils/cn';
 
-/** Colour + Indonesian label per status (CLAUDE.md §8). Unknown statuses fall back to a ghost badge. */
+/**
+ * Colour + Indonesian label per status (CLAUDE.md §8), rendered as Velzon-style soft badges.
+ * Unknown statuses fall back to a ghost badge.
+ */
 const STATUS_MAP: Record<string, { label: string; className: string }> = {
   DRAFT: { label: 'Draft', className: 'badge-ghost' },
   SUBMITTED: { label: 'Diajukan', className: 'badge-warning' },
@@ -41,7 +44,7 @@ export function StatusBadge({ status, label, className }: StatusBadgeProps) {
   return (
     <span
       className={cn(
-        'badge badge-sm whitespace-nowrap',
+        'badge badge-sm badge-soft whitespace-nowrap',
         entry?.className ?? 'badge-ghost',
         className,
       )}

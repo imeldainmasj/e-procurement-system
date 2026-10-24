@@ -407,7 +407,7 @@ export function QuotationComparisonPage() {
             {canEdit && (
               <button
                 type="button"
-                className="btn btn-outline btn-sm"
+                className="btn btn-soft btn-secondary btn-sm"
                 onClick={() => setDialog({ kind: 'form', quotation: null })}
               >
                 <Plus className="size-4" /> Tambah Penawaran
@@ -426,7 +426,7 @@ export function QuotationComparisonPage() {
         </Can>
       </div>
 
-      <div className="stats stats-vertical sm:stats-horizontal bg-base-100 w-full shadow-sm">
+      <div className="stats stats-vertical sm:stats-horizontal bg-base-100 w-full shadow-velzon">
         <div className="stat">
           <div className="stat-title">Nilai Disetujui (Memo)</div>
           <div className="stat-value text-xl">{formatRupiah(data.approvedAmount)}</div>
@@ -480,7 +480,7 @@ export function QuotationComparisonPage() {
         </div>
       )}
 
-      <div className="card bg-base-100 shadow-sm">
+      <div className="card">
         <div className="card-body p-4">
           {quotations.length === 0 ? (
             <EmptyState

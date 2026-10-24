@@ -27,7 +27,7 @@ function Simulator() {
   });
 
   return (
-    <div className="card bg-base-100 shadow-sm">
+    <div className="card">
       <div className="card-body gap-3 p-4">
         <h2 className="font-semibold">Simulasi</h2>
         <p className="text-base-content/70 text-sm">
@@ -82,7 +82,7 @@ export function ApprovalRulesPage() {
         actions={
           <button
             type="button"
-            className="btn btn-primary btn-sm"
+            className="btn btn-soft btn-secondary btn-sm"
             onClick={() => setEditing('new')}
           >
             <Plus className="size-4" /> Tambah Aturan
@@ -99,7 +99,7 @@ export function ApprovalRulesPage() {
             </div>
           ))}
 
-          <div className="card bg-base-100 shadow-sm">
+          <div className="card">
             <div className="card-body p-4">
               {rules.isError ? (
                 <div role="alert" className="alert alert-error">

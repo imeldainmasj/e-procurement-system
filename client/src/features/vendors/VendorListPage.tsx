@@ -99,7 +99,7 @@ export function VendorListPage() {
           <Can role="PROCUREMENT">
             <button
               type="button"
-              className="btn btn-primary btn-sm"
+              className="btn btn-soft btn-secondary btn-sm"
               onClick={() => setCreating(true)}
             >
               <Plus className="size-4" /> Tambah Vendor

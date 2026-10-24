@@ -1,7 +1,8 @@
 /** Number of categorical slots; extra series must be folded into "Lainnya". */
-export const SERIES_SLOTS = 8;
+export const SERIES_SLOTS = 5;
 
-/** Categorical colour for slot `index` (0-based), as a CSS variable defined in index.css. */
+/** Categorical colour for slot `index` (0-based), as a CSS variable defined in index.css
+ * (theme colours: primary → success → warning → secondary → info). */
 export function seriesColor(index: number): string {
   return `var(--series-${(index % SERIES_SLOTS) + 1})`;
 }
@@ -16,7 +17,7 @@ export const axisProps = {
 
 export const gridProps = {
   stroke: 'var(--chart-grid)',
-  strokeDasharray: '0',
+  strokeDasharray: '3 3',
   vertical: false,
 } as const;
 

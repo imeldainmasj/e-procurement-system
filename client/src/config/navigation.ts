@@ -40,7 +40,7 @@ export interface NavSection {
 /** Single source for the sidebar menu and the role guard of each route (CLAUDE.md §8). */
 export const NAV_SECTIONS: NavSection[] = [
   {
-    title: 'Utama',
+    title: 'Menu',
     items: [
       { label: 'Dashboard', path: '/', icon: LayoutDashboard, roles: [] },
       { label: 'Pengajuan', path: '/pengajuan', icon: ClipboardList, roles: [] },

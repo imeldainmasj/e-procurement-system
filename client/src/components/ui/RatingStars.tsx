@@ -21,7 +21,7 @@ export function RatingStars({
           ))}
         </span>
         <span
-          className="absolute inset-0 flex overflow-hidden text-amber-400"
+          className="absolute inset-0 flex overflow-hidden text-warning"
           style={{ width: `${(value / 5) * 100}%` }}
         >
           {[1, 2, 3, 4, 5].map((i) => (

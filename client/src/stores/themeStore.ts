@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type Theme = 'corporate' | 'business';
+export type Theme = 'velzon' | 'velzon-dark';
 
 interface ThemeState {
   theme: Theme;
@@ -14,17 +14,25 @@ const prefersDark =
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set) => ({
-      theme: prefersDark ? 'business' : 'corporate',
+      theme: prefersDark ? 'velzon-dark' : 'velzon',
       toggleTheme: () =>
-        set((state) => ({ theme: state.theme === 'corporate' ? 'business' : 'corporate' })),
+        set((state) => ({ theme: state.theme === 'velzon' ? 'velzon-dark' : 'velzon' })),
     }),
-    { name: 'sipita-theme' },
+    {
+      name: 'sipita-theme',
+      version: 1,
+      // v0 stored the old built-in themes (corporate / business).
+      migrate: (persisted) => {
+        const old = (persisted as { theme?: string } | undefined)?.theme;
+        return { theme: old === 'business' ? 'velzon-dark' : 'velzon' } as ThemeState;
+      },
+    },
   ),
 );
 
 // Keep <html data-theme> in sync on every page, including /login.
 function applyTheme(theme: Theme): void {
-  if (typeof document !== 'undefined') document.documentElement.setAttribute('data-theme', theme);
+  if (typeof document !== 'undefined') document.documentElement.dataset.theme = theme;
 }
 applyTheme(useThemeStore.getState().theme);
 useThemeStore.subscribe((state) => applyTheme(state.theme));

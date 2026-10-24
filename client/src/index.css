@@ -1,34 +1,143 @@
 @import 'tailwindcss';
-@plugin "daisyui" {
-  themes:
-    corporate --default,
-    business --prefersdark;
+@plugin "daisyui";
+
+@plugin "daisyui/theme" {
+  name: 'velzon';
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+  --color-base-100: #ffffff; /* card, sidebar, navbar */
+  --color-base-200: #f9f6f3; /* page background */
+  --color-base-300: #e9ebec; /* border, divider */
+  --color-base-content: #212529;
+  --color-primary: #687cfe;
+  --color-primary-content: #ffffff;
+  --color-secondary: #ff7f5d;
+  --color-secondary-content: #ffffff;
+  --color-accent: #0ac7fb;
+  --color-accent-content: #ffffff;
+  --color-neutral: #343a40;
+  --color-neutral-content: #f8f9fa;
+  --color-info: #0ac7fb;
+  --color-info-content: #ffffff;
+  --color-success: #3cd188;
+  --color-success-content: #ffffff;
+  --color-warning: #efae4e;
+  --color-warning-content: #ffffff;
+  --color-error: #f7666e;
+  --color-error-content: #ffffff;
+  --radius-selector: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.25rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@plugin "daisyui/theme" {
+  name: 'velzon-dark';
+  default: false;
+  prefersdark: true;
+  color-scheme: dark;
+  --color-base-100: #212529;
+  --color-base-200: #1a1d21;
+  --color-base-300: #32383e;
+  --color-base-content: #ced4da;
+  --color-primary: #7a8cff;
+  --color-primary-content: #ffffff;
+  --color-secondary: #ff8f71;
+  --color-secondary-content: #ffffff;
+  --color-accent: #2fd0fc;
+  --color-accent-content: #0b1a20;
+  --color-neutral: #2a2f34;
+  --color-neutral-content: #ced4da;
+  --color-info: #2fd0fc;
+  --color-info-content: #0b1a20;
+  --color-success: #3cd188;
+  --color-success-content: #0b1f15;
+  --color-warning: #efae4e;
+  --color-warning-content: #231806;
+  --color-error: #f7666e;
+  --color-error-content: #ffffff;
+  --radius-selector: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.25rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@theme {
+  --font-sans: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --shadow-velzon: 0 1px 2px rgba(56, 65, 74, 0.15);
+}
+
+@layer components {
+  .card {
+    @apply bg-base-100 shadow-velzon;
+  }
+  .card-header {
+    @apply border-base-300 flex items-center justify-between border-b px-4 py-3;
+  }
+  .card-header .card-title {
+    @apply text-base font-semibold;
+  }
+  .stat-label {
+    @apply text-base-content/60 text-sm font-medium tracking-wide uppercase;
+  }
+  .icon-soft {
+    @apply inline-flex size-12 items-center justify-center rounded;
+    background: color-mix(in oklab, currentColor 15%, transparent);
+  }
+  .menu-velzon .menu-title {
+    @apply text-base-content/50 text-xs font-semibold tracking-wider uppercase;
+  }
 }
 
 /*
- * Chart tokens (dataviz reference palette). Categorical slots are assigned in fixed order
- * and follow the entity, never its rank. The dark theme uses the same hues stepped for the
- * dark surface.
+ * daisyUI 5 ships its components inside `@layer utilities`, so overrides of its own states
+ * must be unlayered to win.
+ */
+.menu-velzon {
+  /* NavLink's aria-current="page" counts as active in daisyUI; keep it flat, not neutral. */
+  --menu-active-bg: transparent;
+  --menu-active-fg: var(--color-primary);
+}
+.menu-velzon li > a {
+  color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+}
+.menu-velzon li > a:hover,
+.menu-velzon li > a:focus-visible {
+  background-color: transparent;
+  color: var(--color-primary);
+}
+.menu-velzon li > a.active {
+  background-color: transparent;
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+/* Velzon focus: thin primary ring instead of daisyUI's thick base-content outline. */
+:is(.input, .select, .textarea):is(:focus, :focus-within) {
+  --input-color: color-mix(in oklab, var(--color-primary) 60%, transparent);
+  outline-width: 1px;
+  outline-offset: 0;
+}
+
+/*
+ * Chart tokens (CLAUDE.md §8): series follow theme colours in the order
+ * primary → success → warning → secondary → info, so charts switch with the theme.
  */
 :root {
-  --series-1: #2a78d6;
-  --series-2: #eb6834;
-  --series-3: #1baf7a;
-  --series-4: #eda100;
-  --series-5: #e87ba4;
-  --series-6: #008300;
-  --series-7: #6250d6;
-  --series-8: #e34948;
-  --chart-grid: color-mix(in oklab, var(--color-base-content) 10%, transparent);
-  --chart-axis: color-mix(in oklab, var(--color-base-content) 55%, transparent);
-}
-[data-theme='business'] {
-  --series-1: #3987e5;
-  --series-2: #d95926;
-  --series-3: #199e70;
-  --series-4: #c98500;
-  --series-5: #d55181;
-  --series-6: #008300;
-  --series-7: #9085e9;
-  --series-8: #e66767;
+  --series-1: var(--color-primary);
+  --series-2: var(--color-success);
+  --series-3: var(--color-warning);
+  --series-4: var(--color-secondary);
+  --series-5: var(--color-info);
+  --chart-grid: var(--color-base-300);
+  --chart-axis: color-mix(in oklab, var(--color-base-content) 60%, transparent);
 }

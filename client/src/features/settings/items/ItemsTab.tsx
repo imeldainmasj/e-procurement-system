@@ -107,7 +107,11 @@ export function ItemsTab() {
   return (
     <>
       <div className="mb-4 flex justify-end">
-        <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing('new')}>
+        <button
+          type="button"
+          className="btn btn-soft btn-secondary btn-sm"
+          onClick={() => setEditing('new')}
+        >
           <Plus className="size-4" /> Tambah Item
         </button>
       </div>
