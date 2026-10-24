@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+
+# env
+.env
+.env.*
+!.env.example
+
+# uploads
+server/uploads/*
+!server/uploads/.gitkeep
+
+# prisma generated client
+server/src/generated/

@@ -1,0 +1,727 @@
+// SIPITA — Prisma schema
+// Conventions (CLAUDE.md §6): UUID ids, createdAt/updatedAt, PascalCase models
+// mapped to snake_case tables, money as Decimal(18,2).
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Counter for automatic document numbering ({PREFIX}/{YYYY}/{MM}/{NNNN}).
+/// Locked with SELECT ... FOR UPDATE inside a transaction when incremented.
+/// `year` is 0 for sequences that never reset (e.g. asset tags).
+model DocumentSequence {
+  id         String   @id @default(uuid()) @db.Uuid
+  prefix     String
+  year       Int
+  lastNumber Int      @default(0) @map("last_number")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([prefix, year])
+  @@map("document_sequences")
+}
+
+// ─── Master & Auth ───────────────────────────────────────────────────────────
+
+enum RoleCode {
+  SUPER_ADMIN
+  REQUESTER
+  WAREHOUSE
+  PROCUREMENT
+  APPROVER
+  VIEWER
+}
+
+model Division {
+  id         String    @id @default(uuid()) @db.Uuid
+  code       String    @unique
+  name       String
+  headUserId String?   @unique @map("head_user_id") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  headUser         User?             @relation("DivisionHead", fields: [headUserId], references: [id], onDelete: SetNull)
+  users            User[]            @relation("DivisionMembers")
+  purchaseRequests PurchaseRequest[]
+
+  @@map("divisions")
+}
+
+model User {
+  id            String    @id @default(uuid()) @db.Uuid
+  name          String
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  nip           String?   @unique
+  phone         String?
+  divisionId    String?   @map("division_id") @db.Uuid
+  /// 1 = Manajer IT, 2 = Keuangan, 3 = Direksi. Only meaningful for APPROVER.
+  approvalLevel Int?      @map("approval_level")
+  isActive      Boolean   @default(true) @map("is_active")
+  lastLoginAt   DateTime? @map("last_login_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  division      Division?      @relation("DivisionMembers", fields: [divisionId], references: [id], onDelete: SetNull)
+  headOf        Division?      @relation("DivisionHead")
+  roles         UserRole[]
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+
+  purchaseRequests      PurchaseRequest[] @relation("PrRequester")
+  createdPurchaseReqs   PurchaseRequest[] @relation("PrCreatedBy")
+  stockCheckedPurchases PurchaseRequest[] @relation("PrStockCheckedBy")
+  createdMemos          InternalMemo[]
+  approvalSteps         ApprovalStep[]
+  notifications         Notification[]
+  attachments           Attachment[]
+  createdVendors        Vendor[]
+  uploadedVendorDocs    VendorDocument[]
+  vendorRatings         VendorRating[]
+  createdQuotations     Quotation[]       @relation("QuotationCreatedBy")
+  selectedQuotations    Quotation[]       @relation("QuotationSelectedBy")
+  createdPurchaseOrders PurchaseOrder[]   @relation("PoCreatedBy")
+  issuedPurchaseOrders  PurchaseOrder[]   @relation("PoIssuedBy")
+  updatedSettings       AppSetting[]
+
+  @@index([divisionId])
+  @@map("users")
+}
+
+model Role {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      RoleCode @unique
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  userId    String   @map("user_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  /// SHA-256 of the signed refresh JWT; the raw token is never stored.
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ─── Katalog ─────────────────────────────────────────────────────────────────
+
+model ItemCategory {
+  id          String    @id @default(uuid()) @db.Uuid
+  code        String    @unique
+  name        String
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  items   Item[]
+  vendors VendorCategory[]
+
+  @@map("item_categories")
+}
+
+model Item {
+  id          String    @id @default(uuid()) @db.Uuid
+  code        String    @unique
+  name        String
+  categoryId  String    @map("category_id") @db.Uuid
+  unit        String
+  /// true = tracked per unit as an Asset (serial number); false = consumable stock.
+  isAsset     Boolean   @default(false) @map("is_asset")
+  minStock    Int       @default(0) @map("min_stock")
+  /// Free-form key/value specifications, e.g. { "RAM": "16 GB" }.
+  specs       Json?
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  category     ItemCategory          @relation(fields: [categoryId], references: [id])
+  prItems      PurchaseRequestItem[]
+  poItems      PurchaseOrderItem[]
+  priceHistory PriceHistory[]
+
+  @@index([categoryId])
+  @@map("items")
+}
+
+// ─── Gudang ──────────────────────────────────────────────────────────────────
+
+model Warehouse {
+  id        String    @id @default(uuid()) @db.Uuid
+  code      String    @unique
+  name      String
+  location  String?
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("warehouses")
+}
+
+// ─── Approval ────────────────────────────────────────────────────────────────
+
+/// Maps an estimated PR total to the approval levels it needs.
+/// Each bound carries its own inclusivity so ranges like "< 10jt", "10jt–50jt", "> 50jt" are exact.
+model ApprovalRule {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  minAmount    Decimal  @map("min_amount") @db.Decimal(18, 2)
+  minInclusive Boolean  @default(true) @map("min_inclusive")
+  /// null = no upper bound
+  maxAmount    Decimal? @map("max_amount") @db.Decimal(18, 2)
+  maxInclusive Boolean  @default(false) @map("max_inclusive")
+  levels       Int[]
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  memos InternalMemo[]
+
+  @@map("approval_rules")
+}
+
+// ─── Sistem ──────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  action    String
+  entity    String
+  entityId  String   @map("entity_id")
+  before    Json?
+  after     Json?
+  ip        String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─── Pengajuan ───────────────────────────────────────────────────────────────
+
+enum PrStatus {
+  DRAFT
+  SUBMITTED
+  STOCK_CHECK
+  FULFILLED_FROM_STOCK
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  QUOTATION
+  PO_ISSUED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  COMPLETED
+  CANCELLED
+}
+
+enum PrPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model PurchaseRequest {
+  id               String     @id @default(uuid()) @db.Uuid
+  /// Assigned on submit (PR-IT/YYYY/MM/NNNN); null while DRAFT.
+  number           String?    @unique
+  requesterId      String     @map("requester_id") @db.Uuid
+  divisionId       String     @map("division_id") @db.Uuid
+  title            String
+  justification    String
+  priority         PrPriority @default(MEDIUM)
+  neededDate       DateTime   @map("needed_date") @db.Date
+  estimatedTotal   Decimal    @default(0) @map("estimated_total") @db.Decimal(18, 2)
+  status           PrStatus   @default(DRAFT)
+  submittedAt      DateTime?  @map("submitted_at")
+  stockCheckedById String?    @map("stock_checked_by_id") @db.Uuid
+  stockCheckedAt   DateTime?  @map("stock_checked_at")
+  stockCheckNotes  String?    @map("stock_check_notes")
+  cancelReason     String?    @map("cancel_reason")
+  cancelledAt      DateTime?  @map("cancelled_at")
+  createdById      String     @map("created_by_id") @db.Uuid
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+
+  requester      User                  @relation("PrRequester", fields: [requesterId], references: [id])
+  createdBy      User                  @relation("PrCreatedBy", fields: [createdById], references: [id])
+  stockCheckedBy User?                 @relation("PrStockCheckedBy", fields: [stockCheckedById], references: [id])
+  division       Division              @relation(fields: [divisionId], references: [id])
+  items          PurchaseRequestItem[]
+  memo           InternalMemo?
+  quotations     Quotation[]
+  purchaseOrders PurchaseOrder[]
+
+  @@index([requesterId])
+  @@index([divisionId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("purchase_requests")
+}
+
+model PurchaseRequestItem {
+  id                 String   @id @default(uuid()) @db.Uuid
+  prId               String   @map("pr_id") @db.Uuid
+  /// Catalog item; null when the requester typed a free-text item.
+  itemId             String?  @map("item_id") @db.Uuid
+  freeTextName       String?  @map("free_text_name")
+  unit               String
+  qty                Int
+  estimatedUnitPrice Decimal  @map("estimated_unit_price") @db.Decimal(18, 2)
+  subtotal           Decimal  @db.Decimal(18, 2)
+  notes              String?
+  sortOrder          Int      @default(0) @map("sort_order")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  pr             PurchaseRequest     @relation(fields: [prId], references: [id], onDelete: Cascade)
+  item           Item?               @relation(fields: [itemId], references: [id])
+  quotationItems QuotationItem[]
+  poItems        PurchaseOrderItem[]
+
+  @@index([prId])
+  @@index([itemId])
+  @@map("purchase_request_items")
+}
+
+// ─── Memo & Approval ─────────────────────────────────────────────────────────
+
+enum MemoStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ApprovalStepStatus {
+  WAITING
+  PENDING
+  APPROVED
+  REJECTED
+  SKIPPED
+}
+
+/// Generated automatically when a PR goes to approval; one memo per PR.
+model InternalMemo {
+  id             String     @id @default(uuid()) @db.Uuid
+  number         String     @unique
+  prId           String     @unique @map("pr_id") @db.Uuid
+  subject        String
+  body           String
+  status         MemoStatus @default(PENDING)
+  /// Snapshot of the PR total and the rule used to pick the levels.
+  totalAmount    Decimal    @map("total_amount") @db.Decimal(18, 2)
+  approvalRuleId String?    @map("approval_rule_id") @db.Uuid
+  decidedAt      DateTime?  @map("decided_at")
+  createdById    String     @map("created_by_id") @db.Uuid
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  pr           PurchaseRequest @relation(fields: [prId], references: [id], onDelete: Cascade)
+  approvalRule ApprovalRule?   @relation(fields: [approvalRuleId], references: [id], onDelete: SetNull)
+  createdBy    User            @relation(fields: [createdById], references: [id])
+  steps        ApprovalStep[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("internal_memos")
+}
+
+model ApprovalStep {
+  id           String             @id @default(uuid()) @db.Uuid
+  memoId       String             @map("memo_id") @db.Uuid
+  level        Int
+  sequence     Int
+  status       ApprovalStepStatus @default(WAITING)
+  /// Who acted on the step (any approver of `level` may act).
+  approverId   String?            @map("approver_id") @db.Uuid
+  comment      String?
+  actedAt      DateTime?          @map("acted_at")
+  /// When the step became PENDING (for "waiting since" and reminders).
+  pendingSince DateTime?          @map("pending_since")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+
+  memo     InternalMemo @relation(fields: [memoId], references: [id], onDelete: Cascade)
+  approver User?        @relation(fields: [approverId], references: [id])
+
+  @@unique([memoId, sequence])
+  @@index([status, level])
+  @@index([approverId])
+  @@map("approval_steps")
+}
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  /// Machine-readable kind, e.g. APPROVAL_REQUIRED; also used for job idempotency.
+  type      String
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean   @default(false) @map("is_read")
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// ─── Vendor ──────────────────────────────────────────────────────────────────
+
+enum VendorStatus {
+  ACTIVE
+  UNDER_REVIEW
+  BLACKLISTED
+  INACTIVE
+}
+
+enum VendorDocumentType {
+  SIUP
+  NIB
+  NPWP
+  AKTA
+  LAINNYA
+}
+
+model Vendor {
+  id              String       @id @default(uuid()) @db.Uuid
+  code            String       @unique
+  name            String
+  /// Digits only (15 or 16).
+  npwp            String?      @unique
+  address         String?
+  city            String?
+  picName         String?      @map("pic_name")
+  email           String?
+  phone           String?
+  bankName        String?      @map("bank_name")
+  bankAccount     String?      @map("bank_account")
+  bankAccountName String?      @map("bank_account_name")
+  status          VendorStatus @default(UNDER_REVIEW)
+  /// Why the vendor got its current status (required for BLACKLISTED).
+  statusReason    String?      @map("status_reason")
+  notes           String?
+  createdById     String       @map("created_by_id") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  deletedAt       DateTime?    @map("deleted_at")
+
+  createdBy      User             @relation(fields: [createdById], references: [id])
+  categories     VendorCategory[]
+  documents      VendorDocument[]
+  ratings        VendorRating[]
+  quotations     Quotation[]
+  purchaseOrders PurchaseOrder[]
+  priceHistory   PriceHistory[]
+
+  @@index([status])
+  @@map("vendors")
+}
+
+/// Item categories a vendor supplies (used to suggest vendors for a PR).
+model VendorCategory {
+  vendorId   String @map("vendor_id") @db.Uuid
+  categoryId String @map("category_id") @db.Uuid
+
+  vendor   Vendor       @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  category ItemCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([vendorId, categoryId])
+  @@index([categoryId])
+  @@map("vendor_categories")
+}
+
+model VendorDocument {
+  id           String             @id @default(uuid()) @db.Uuid
+  vendorId     String             @map("vendor_id") @db.Uuid
+  type         VendorDocumentType
+  number       String?
+  attachmentId String             @unique @map("attachment_id") @db.Uuid
+  expiresAt    DateTime?          @map("expires_at") @db.Date
+  notes        String?
+  uploadedById String             @map("uploaded_by_id") @db.Uuid
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+
+  vendor     Vendor     @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  attachment Attachment @relation(fields: [attachmentId], references: [id])
+  uploadedBy User       @relation(fields: [uploadedById], references: [id])
+
+  @@index([vendorId])
+  @@index([expiresAt])
+  @@map("vendor_documents")
+}
+
+/// One rating per purchase order, given after the goods are received.
+model VendorRating {
+  id        String   @id @default(uuid()) @db.Uuid
+  vendorId  String   @map("vendor_id") @db.Uuid
+  poId      String   @unique @map("po_id") @db.Uuid
+  onTime    Int      @map("on_time")
+  quality   Int
+  price     Int
+  service   Int
+  notes     String?
+  ratedById String   @map("rated_by_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  vendor        Vendor        @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  purchaseOrder PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  ratedBy       User          @relation(fields: [ratedById], references: [id])
+
+  @@index([vendorId])
+  @@map("vendor_ratings")
+}
+
+// ─── Lampiran ────────────────────────────────────────────────────────────────
+
+/// Uploaded file. Stored under UPLOAD_DIR with a generated name and only served
+/// through the authenticated download endpoint.
+model Attachment {
+  id           String   @id @default(uuid()) @db.Uuid
+  /// Original name as uploaded (for display and download).
+  fileName     String   @map("file_name")
+  /// Path relative to UPLOAD_DIR, e.g. 2026/10/<uuid>.pdf
+  path         String   @unique
+  mimeType     String   @map("mime_type")
+  size         Int
+  /// Owning record, e.g. refType "VendorDocument"; decides who may download.
+  refType      String?  @map("ref_type")
+  refId        String?  @map("ref_id") @db.Uuid
+  uploadedById String   @map("uploaded_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  uploadedBy     User            @relation(fields: [uploadedById], references: [id])
+  vendorDocument VendorDocument?
+  quotation      Quotation?
+
+  @@index([refType, refId])
+  @@map("attachments")
+}
+
+// ─── Pengaturan ──────────────────────────────────────────────────────────────
+
+/// Key/value application settings (default PPN, minimum quotations, company identity).
+/// Keys and defaults are defined in @sipita/shared (SETTING_DEFAULTS).
+model AppSetting {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  value       Json
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("app_settings")
+}
+
+// ─── Penawaran & Harga ───────────────────────────────────────────────────────
+
+/// A vendor's offer for a whole approved PR (one per vendor per PR). Exactly one
+/// quotation per PR may be selected; it becomes the basis of the purchase order.
+model Quotation {
+  id                     String    @id @default(uuid()) @db.Uuid
+  prId                   String    @map("pr_id") @db.Uuid
+  vendorId               String    @map("vendor_id") @db.Uuid
+  quoteNumber            String    @map("quote_number")
+  quoteDate              DateTime  @map("quote_date") @db.Date
+  validUntil             DateTime? @map("valid_until") @db.Date
+  deliveryDays           Int?      @map("delivery_days")
+  paymentTerms           String?   @map("payment_terms")
+  /// Sum of item subtotals, before tax.
+  totalAmount            Decimal   @map("total_amount") @db.Decimal(18, 2)
+  notes                  String?
+  attachmentId           String?   @unique @map("attachment_id") @db.Uuid
+  isSelected             Boolean   @default(false) @map("is_selected")
+  selectedAt             DateTime? @map("selected_at")
+  selectedById           String?   @map("selected_by_id") @db.Uuid
+  /// Required when fewer than the minimum quotations exist, the winner is not the
+  /// cheapest, or its total exceeds the approved memo amount.
+  selectionJustification String?   @map("selection_justification")
+  createdById            String    @map("created_by_id") @db.Uuid
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  pr             PurchaseRequest @relation(fields: [prId], references: [id], onDelete: Cascade)
+  vendor         Vendor          @relation(fields: [vendorId], references: [id])
+  attachment     Attachment?     @relation(fields: [attachmentId], references: [id])
+  selectedBy     User?           @relation("QuotationSelectedBy", fields: [selectedById], references: [id])
+  createdBy      User            @relation("QuotationCreatedBy", fields: [createdById], references: [id])
+  items          QuotationItem[]
+  purchaseOrders PurchaseOrder[]
+
+  @@unique([prId, vendorId])
+  @@index([vendorId])
+  @@map("quotations")
+}
+
+model QuotationItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  quotationId String   @map("quotation_id") @db.Uuid
+  prItemId    String   @map("pr_item_id") @db.Uuid
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(18, 2)
+  qty         Int
+  subtotal    Decimal  @db.Decimal(18, 2)
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  quotation Quotation           @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  prItem    PurchaseRequestItem @relation(fields: [prItemId], references: [id], onDelete: Cascade)
+
+  @@unique([quotationId, prItemId])
+  @@index([prItemId])
+  @@map("quotation_items")
+}
+
+enum PriceSourceType {
+  QUOTATION
+  PO
+}
+
+/// Unit prices of catalog items, recorded from quotations and issued purchase orders.
+model PriceHistory {
+  id         String          @id @default(uuid()) @db.Uuid
+  itemId     String          @map("item_id") @db.Uuid
+  vendorId   String          @map("vendor_id") @db.Uuid
+  unitPrice  Decimal         @map("unit_price") @db.Decimal(18, 2)
+  sourceType PriceSourceType @map("source_type")
+  sourceId   String          @map("source_id") @db.Uuid
+  /// Quote date or PO order date.
+  recordedAt DateTime        @map("recorded_at") @db.Date
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+
+  item   Item   @relation(fields: [itemId], references: [id])
+  vendor Vendor @relation(fields: [vendorId], references: [id])
+
+  @@index([itemId, recordedAt])
+  @@index([vendorId])
+  @@index([sourceType, sourceId])
+  @@map("price_history")
+}
+
+// ─── Purchase Order ──────────────────────────────────────────────────────────
+
+enum PoStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CLOSED
+  CANCELLED
+}
+
+/// Created from the selected quotation; at most one non-cancelled PO per PR.
+model PurchaseOrder {
+  id              String    @id @default(uuid()) @db.Uuid
+  number          String    @unique
+  prId            String    @map("pr_id") @db.Uuid
+  vendorId        String    @map("vendor_id") @db.Uuid
+  quotationId     String    @map("quotation_id") @db.Uuid
+  orderDate       DateTime  @map("order_date") @db.Date
+  expectedDate    DateTime? @map("expected_date") @db.Date
+  subtotal        Decimal   @db.Decimal(18, 2)
+  taxPercent      Decimal   @map("tax_percent") @db.Decimal(5, 2)
+  taxAmount       Decimal   @map("tax_amount") @db.Decimal(18, 2)
+  total           Decimal   @db.Decimal(18, 2)
+  status          PoStatus  @default(DRAFT)
+  terms           String?
+  deliveryAddress String?   @map("delivery_address")
+  notes           String?
+  issuedAt        DateTime? @map("issued_at")
+  issuedById      String?   @map("issued_by_id") @db.Uuid
+  cancelledAt     DateTime? @map("cancelled_at")
+  cancelReason    String?   @map("cancel_reason")
+  createdById     String    @map("created_by_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  pr        PurchaseRequest     @relation(fields: [prId], references: [id])
+  vendor    Vendor              @relation(fields: [vendorId], references: [id])
+  quotation Quotation           @relation(fields: [quotationId], references: [id])
+  issuedBy  User?               @relation("PoIssuedBy", fields: [issuedById], references: [id])
+  createdBy User                @relation("PoCreatedBy", fields: [createdById], references: [id])
+  items     PurchaseOrderItem[]
+  rating    VendorRating?
+
+  @@index([prId])
+  @@index([vendorId])
+  @@index([status])
+  @@index([orderDate])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  poId        String   @map("po_id") @db.Uuid
+  prItemId    String?  @map("pr_item_id") @db.Uuid
+  /// Catalog item; null for free-text PR items.
+  itemId      String?  @map("item_id") @db.Uuid
+  name        String
+  unit        String
+  qty         Int
+  receivedQty Int      @default(0) @map("received_qty")
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(18, 2)
+  subtotal    Decimal  @db.Decimal(18, 2)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  po     PurchaseOrder        @relation(fields: [poId], references: [id], onDelete: Cascade)
+  prItem PurchaseRequestItem? @relation(fields: [prItemId], references: [id], onDelete: SetNull)
+  item   Item?                @relation(fields: [itemId], references: [id])
+
+  @@index([poId])
+  @@index([itemId])
+  @@map("purchase_order_items")
+}
