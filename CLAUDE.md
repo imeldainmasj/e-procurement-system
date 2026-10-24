@@ -1,4 +1,4 @@
-# CLAUDE.md — SIPITA (Sistem Informasi Pengadaan IT & Aset)
+# CLAUDE.md — SIPITA (Sistem Informasi Pengadaan IT — IT SAPM)
 
 File ini adalah panduan utama untuk Claude Code saat mengerjakan proyek ini.
 Baca seluruh file ini sebelum menulis kode. Ikuti konvensi di sini secara konsisten.
@@ -7,18 +7,24 @@ Baca seluruh file ini sebelum menulis kode. Ikuti konvensi di sini secara konsis
 
 ## 1. Ringkasan Proyek
 
-SIPITA adalah aplikasi web internal untuk mengelola **pengadaan IT** dan **gudang/aset IT**:
+SIPITA adalah aplikasi web internal tim **IT SAPM** untuk **mencatat data pengadaan software/lisensi IT dan memantau pekerjaan staff**. Aplikasi ini menggantikan rekap Excel + dashboard Tableau.
 
-1. **Pengajuan (Purchase Request / PR)** oleh requester dari divisi mana pun
-2. **Memo Internal & Approval berjenjang** berdasarkan nilai pengajuan
-3. **Manajemen Vendor** (master data, dokumen legal, rating kinerja)
-4. **Harga & Penawaran** (perbandingan min. 3 vendor, riwayat harga, Purchase Order)
-5. **Kontrak** (pembelian, sewa, maintenance, lisensi) + reminder jatuh tempo
-6. **Gudang / Aset IT** (stok, barang masuk/keluar, serial number, pemegang aset, garansi)
-7. **Dashboard** (KPI pengadaan, belanja, stok, kontrak, kinerja vendor, anggaran)
+**Prinsip utama: SIPITA adalah sistem pencatatan, bukan sistem workflow.**
+Semua proses pengadaan (approval, tender, PVP, MoA, LoA, PO, kontrak) **terjadi di luar sistem**. SIPITA hanya:
+1. Menyimpan **data pengadaan** (historis sejak 2015 dan yang berjalan) agar mudah dicari dan direkap.
+2. Melacak **pekerjaan** setiap staff: posisi tahapan (milestone) + log update progres (pengganti update di Excel).
+3. Menyajikan **dashboard & report** interaktif untuk staff dan manager.
+
+Masalah yang diselesaikan:
+- Sulit menjawab pertanyaan seperti "berapa total nilai pengadaan 2015 sampai sekarang?" karena data tersebar di banyak Excel.
+- Manager tidak punya visibilitas langsung atas pekerjaan dan progres tiap staff.
+
+**Di luar lingkup** (jangan dibuat): pengadaan hardware/laptop (ada sistem terpisah), approval di dalam sistem, perbandingan penawaran, generate PO/PDF dokumen pengadaan, penerimaan barang, gudang/aset fisik, anggaran.
+
+Jenis pengadaan yang dicatat: **Renewal License**, **New License**, **New Application**.
 
 Bahasa UI: **Bahasa Indonesia**. Kode, nama variabel, nama tabel, dan komentar teknis: **Bahasa Inggris**.
-Mata uang: **IDR** (format `Rp 1.250.000`). Zona waktu: **Asia/Jakarta**.
+Mata uang default: **IDR** (format `Rp 1.250.000`). Data boleh dalam mata uang lain (lihat bagian 6 → Mata Uang). Zona waktu: **Asia/Jakarta**.
 
 ---
 
@@ -27,12 +33,12 @@ Mata uang: **IDR** (format `Rp 1.250.000`). Zona waktu: **Asia/Jakarta**.
 ### Frontend (`/client`)
 - **React 18 + Vite** (TypeScript)
 - **TailwindCSS v4** via `@tailwindcss/vite`
-- **DaisyUI v5** (`@plugin "daisyui";` di file CSS utama). Tema custom: **`velzon`** (light, default) & **`velzon-dark`** (dark) — gaya visual mengikuti template admin Velzon (lihat bagian 8 → *Tema & Desain Visual*)
+- **DaisyUI v5** (`@plugin "daisyui";` di file CSS utama). Tema custom: **`velzon`** (light, default) & **`velzon-dark`** (dark) — lihat bagian 9 → *Tema & Desain Visual*
 - **React Router v6** (data router: `createBrowserRouter`)
 - **TanStack Query v5** untuk data fetching & cache
 - **React Hook Form + Zod** untuk form & validasi
 - **Axios** (instance terpusat dengan interceptor JWT + refresh token)
-- **Recharts** untuk grafik dashboard
+- **Recharts** untuk grafik dashboard & report
 - **TanStack Table v8** untuk tabel data (sorting, filter, pagination server-side)
 - **lucide-react** untuk ikon
 - **dayjs** (locale `id`) untuk tanggal
@@ -45,12 +51,13 @@ Mata uang: **IDR** (format `Rp 1.250.000`). Zona waktu: **Asia/Jakarta**.
 - **Zod** untuk validasi request (shared schema bila memungkinkan)
 - **JWT** (access token 15 menit + refresh token 7 hari di httpOnly cookie)
 - **bcrypt** untuk hash password
-- **multer** untuk upload file (lampiran memo, kontrak, dokumen vendor)
-- **node-cron** untuk job terjadwal (reminder kontrak, stok minimum)
-- **nodemailer** untuk notifikasi email
+- **multer** untuk upload file (file Excel import, lampiran update pekerjaan)
+- **exceljs** untuk membaca file import dan membuat template + export report `.xlsx`
+- **puppeteer** untuk export report ke PDF
+- **node-cron** untuk job terjadwal (kontrak jatuh tempo, pekerjaan tidak di-update)
+- **nodemailer** untuk notifikasi email (opsional, notifikasi in-app wajib)
 - **pino** untuk logging
 - **helmet, cors, express-rate-limit** untuk keamanan
-- **pdfkit** atau **puppeteer** untuk generate PDF (Memo, PO)
 
 ### Tooling
 - Monorepo sederhana dengan **npm workspaces** (`client`, `server`, `shared`)
@@ -66,15 +73,17 @@ Mata uang: **IDR** (format `Rp 1.250.000`). Zona waktu: **Asia/Jakarta**.
 sipita/
 ├── CLAUDE.md
 ├── docs/
-│   └── design/
-│       ├── velzon-reference.png    # screenshot acuan visual (WAJIB dilihat sebelum membuat halaman baru)
-│       └── velzon-preview.html     # contoh pola komponen dengan tema velzon
+│   ├── design/
+│   │   ├── velzon-reference.png    # acuan visual (WAJIB dilihat sebelum membuat halaman baru)
+│   │   └── velzon-preview.html     # contoh pola komponen tema velzon
+│   └── import/
+│       └── template-import.xlsx    # template resmi import (di-generate dari kode, lihat bagian 7)
 ├── docker-compose.yml          # postgres + pgadmin
 ├── package.json                # npm workspaces
-├── shared/                     # tipe & zod schema yang dipakai client + server
+├── shared/
 │   └── src/
-│       ├── schemas/            # pr.schema.ts, vendor.schema.ts, ...
-│       ├── enums.ts            # status, role, kategori
+│       ├── schemas/            # zod schema: work.schema.ts, memo.schema.ts, ...
+│       ├── enums.ts            # semua enum (bagian 6)
 │       └── index.ts
 ├── server/
 │   ├── prisma/
@@ -83,61 +92,56 @@ sipita/
 │   │   └── seed.ts
 │   ├── uploads/                # file upload (gitignored)
 │   └── src/
-│       ├── app.ts              # setup express, middleware
-│       ├── server.ts           # entry point
+│       ├── app.ts
+│       ├── server.ts
 │       ├── config/             # env.ts (validasi env dengan zod)
-│       ├── lib/                # prisma.ts, logger.ts, mailer.ts, pdf.ts
-│       ├── middleware/         # auth.ts, rbac.ts, validate.ts, errorHandler.ts, upload.ts
-│       ├── modules/            # satu folder per fitur
+│       ├── lib/                # prisma.ts, logger.ts, mailer.ts, excel.ts, pdf.ts
+│       ├── middleware/         # auth.ts, permission.ts, validate.ts, errorHandler.ts, upload.ts
+│       ├── modules/
 │       │   ├── auth/
-│       │   ├── users/
-│       │   ├── divisions/
-│       │   ├── purchase-requests/
-│       │   ├── memos/
-│       │   ├── approvals/
+│       │   ├── users/              # + permission per fitur
+│       │   ├── organization/       # directorate, division, department
 │       │   ├── vendors/
-│       │   ├── items/
-│       │   ├── quotations/
-│       │   ├── purchase-orders/
-│       │   ├── goods-receipts/
-│       │   ├── assets/
-│       │   ├── stock/
-│       │   ├── contracts/
-│       │   ├── budgets/
+│       │   ├── works/              # Pekerjaan + milestone + log update
+│       │   ├── memos/              # Memo pengajuan & semua jenis MoA
+│       │   ├── rfqs/               # RFQ + LoA
+│       │   ├── pvp-forums/
+│       │   ├── purchase-orders/    # + term of payment
+│       │   ├── agreements/         # + addendum
+│       │   ├── milestone-templates/
+│       │   ├── settings/           # ambang & konfigurasi (AppSetting)
+│       │   ├── imports/            # upload, preview, commit, rollback
+│       │   ├── dashboard/
+│       │   ├── reports/
 │       │   ├── notifications/
 │       │   ├── attachments/
-│       │   ├── dashboard/
 │       │   └── audit-logs/
-│       ├── jobs/               # contractReminder.job.ts, lowStock.job.ts
-│       └── utils/              # numbering.ts, pagination.ts, currency.ts
+│       ├── jobs/               # contractExpiry.job.ts, staleWork.job.ts
+│       └── utils/              # numbering.ts, pagination.ts, currency.ts, procurementRules.ts
 └── client/
     └── src/
         ├── main.tsx
-        ├── index.css           # entry CSS: @import "tailwindcss"; @plugin "daisyui";
-        │                       # + definisi tema velzon & velzon-dark + komponen kustom
+        ├── index.css           # entry CSS: tailwind + daisyui + tema velzon (bagian 9)
         ├── router.tsx
-        ├── api/                # axios instance + fungsi API per modul
+        ├── api/
         ├── hooks/              # useAuth, usePermission, query hooks per modul
         ├── stores/             # authStore.ts, themeStore.ts
         ├── components/
         │   ├── layout/         # AppLayout, Sidebar, Navbar, Breadcrumb
         │   ├── ui/             # DataTable, StatusBadge, ConfirmModal, FileUpload,
-        │   │                   # CurrencyInput, EmptyState, PageHeader, StatCard
+        │   │                   # CurrencyInput, EmptyState, PageHeader, StatCard,
+        │   │                   # MilestoneTrack, DataIssueBadge
         │   └── charts/         # chartColors.ts + wrapper Recharts
-        ├── features/           # satu folder per modul (pages + komponen spesifik)
+        ├── features/
         │   ├── auth/
         │   ├── dashboard/
-        │   ├── purchase-requests/
-        │   ├── memos/
-        │   ├── approvals/
+        │   ├── works/              # daftar, pekerjaan saya, detail, update progres
+        │   ├── monitoring/         # monitoring tim (manager)
+        │   ├── agreements/
         │   ├── vendors/
-        │   ├── quotations/
-        │   ├── purchase-orders/
-        │   ├── warehouse/
-        │   ├── assets/
-        │   ├── contracts/
-        │   ├── budgets/
-        │   └── settings/       # users, divisions, approval rules, items/katalog
+        │   ├── reports/
+        │   ├── imports/
+        │   └── settings/           # user & permission, organisasi, template milestone, ambang
         └── utils/              # formatCurrency, formatDate, cn
 ```
 
@@ -146,181 +150,328 @@ Setiap modul backend berisi: `*.routes.ts`, `*.controller.ts`, `*.service.ts`, `
 
 ---
 
-## 4. Role & Hak Akses (RBAC)
+## 4. Pengguna, Jabatan & Hak Akses
 
-| Role | Kode | Hak Akses |
+Semua pengguna adalah anggota tim **IT SAPM**. **Seluruh input data dilakukan oleh staff IT SAPM**, termasuk data dokumen yang diproses tim lain (mis. nomor LoA).
+
+| Jabatan (`jobLevel`) | Lihat data | Ubah data |
 |---|---|---|
-| Super Admin | `SUPER_ADMIN` | Semua, termasuk master data & pengaturan approval |
-| Requester | `REQUESTER` | Buat/edit PR milik sendiri (selama Draft), lihat status PR sendiri, terima aset |
-| Admin Gudang IT | `WAREHOUSE` | Kelola stok, penerimaan barang (GR), serah terima aset, cek stok untuk PR |
-| Staf Pengadaan | `PROCUREMENT` | Kelola vendor, penawaran, PO, kontrak, harga |
-| Approver | `APPROVER` | Approve/reject memo sesuai level (Manajer IT, Keuangan, Direksi) |
-| Manajemen | `VIEWER` | Dashboard & laporan, read-only |
+| `STAFF` | Semua data pengadaan & report | Hanya pekerjaan yang PIC-nya dirinya (milestone, dokumen, log update) |
+| `MANAGER_L1` | Semua, termasuk Monitoring Tim | Semua pekerjaan; bisa mengganti PIC |
+| `MANAGER_L2` | Semua, termasuk Monitoring Tim | Semua pekerjaan; bisa mengganti PIC |
 
-- User bisa punya **lebih dari satu role** (relasi many-to-many).
-- Approver punya atribut `approvalLevel` (1 = Manajer IT, 2 = Keuangan, 3 = Direksi).
-- Middleware `requireRole(...roles)` di backend; hook `usePermission()` + komponen `<Can role="...">` di frontend.
-- Requester hanya boleh melihat data miliknya sendiri (filter di service, bukan di client).
+- Flag `isAdmin` (terpisah dari jabatan): kelola user, permission, organisasi, template milestone, pengaturan ambang, rollback import.
+- Hak akses per fitur di `UserPermission` (userId + feature → `canView`, `canCreate`, `canUpdate`, `canDelete`). Permission **mempersempit** aturan jabatan di atas, tidak memperluas.
+- Backend: `requireAuth` → `requirePermission(feature, action)` → cek kepemilikan di service (staff hanya boleh mengubah pekerjaan miliknya). `isAdmin` melewati cek permission.
+- Frontend: `usePermission()` + komponen `<Can feature="..." action="...">` untuk menyembunyikan tombol. Tetap wajib dicek di backend.
+- Perbedaan `MANAGER_L1` dan `MANAGER_L2` saat ini hanya label jabatan. Jangan buat aturan berbeda tanpa ditanyakan.
+- Struktur organisasi: `Directorate` → `Division` → `Department` → `User`.
 
 ---
 
-## 5. Alur Bisnis Utama
+## 5. Aturan Bisnis Pengadaan
 
-```
-[Requester] Buat PR (Draft)
-      │ submit
-      ▼
-[Gudang] Cek stok ──► Stok tersedia? ──Ya──► Serah terima aset ──► PR: FULFILLED_FROM_STOCK
-      │ Tidak
-      ▼
-Sistem generate Memo Internal otomatis (nomor + isi dari PR)
-      │
-      ▼
-Approval berjenjang sesuai ApprovalRule (berdasarkan estimasi total nilai):
-   < Rp10.000.000             → Level 1 (Manajer IT)
-   Rp10.000.000 – 50.000.000  → Level 1 → Level 2 (Keuangan)
-   > Rp50.000.000             → Level 1 → Level 2 → Level 3 (Direksi)
-   (ambang batas disimpan di tabel approval_rules, BUKAN hardcode)
-      │ semua approve                      │ ada yang reject
-      ▼                                    ▼
-PR: APPROVED                          PR: REJECTED (wajib alasan)
-      │
-      ▼
-[Pengadaan] Input penawaran (min. 3 vendor, kecuali vendor tunggal + justifikasi)
-      │ pilih pemenang
-      ▼
-Generate Purchase Order (PO) ──► PR: PO_ISSUED
-      │ (opsional) buat Kontrak terkait PO
-      ▼
-[Gudang] Goods Receipt (penerimaan barang, bisa parsial)
-      │ barang aset → buat record Asset (serial number, garansi)
-      │ barang consumable → tambah stok
-      ▼
-PR: RECEIVED ──► Serah terima ke requester ──► PR: COMPLETED
-```
+### 5.1 Konsep Pekerjaan
 
-### Status Enum
-- **PR:** `DRAFT, SUBMITTED, STOCK_CHECK, FULFILLED_FROM_STOCK, PENDING_APPROVAL, APPROVED, REJECTED, QUOTATION, PO_ISSUED, PARTIALLY_RECEIVED, RECEIVED, COMPLETED, CANCELLED`
-- **Memo:** `DRAFT, PENDING, APPROVED, REJECTED`
-- **Approval step:** `WAITING, PENDING, APPROVED, REJECTED, SKIPPED`
-- **PO:** `DRAFT, ISSUED, PARTIALLY_RECEIVED, RECEIVED, CLOSED, CANCELLED`
-- **Kontrak:** `DRAFT, ACTIVE, EXPIRING_SOON, EXPIRED, TERMINATED, RENEWED`
-- **Aset:** `AVAILABLE, IN_USE, IN_REPAIR, BROKEN, DISPOSED, LOST`
-- **Vendor:** `ACTIVE, UNDER_REVIEW, BLACKLISTED, INACTIVE`
+**Satu pengadaan = satu Pekerjaan (`Work`).** Semua dokumen (Memo, MoA, RFQ, PVP, PO, Agreement, Addendum) menempel ke pekerjaan. Setiap pekerjaan:
+- punya **satu PIC staff**,
+- punya **milestone** yang dibentuk otomatis dari template sesuai metodenya,
+- punya **log update** (`WorkUpdate`) yang ditulis staff setiap ada progres.
 
-Transisi status harus divalidasi di service (buat helper `assertTransition(current, next)`). Jangan izinkan lompat status sembarangan.
+### 5.2 Metode Pengadaan
 
-### Penomoran Otomatis
-Format: `{PREFIX}/{YYYY}/{MM}/{NNNN}` — reset counter per tahun. Gunakan tabel `document_sequences` dengan transaksi + `SELECT ... FOR UPDATE` agar aman dari race condition.
-
-| Dokumen | Prefix | Contoh |
+| Metode | Kode | Kapan dipakai |
 |---|---|---|
-| Purchase Request | `PR-IT` | `PR-IT/2026/10/0001` |
-| Memo Internal | `MEMO-IT` | `MEMO-IT/2026/10/0001` |
-| Purchase Order | `PO-IT` | `PO-IT/2026/10/0001` |
-| Goods Receipt | `GR-IT` | `GR-IT/2026/10/0001` |
-| Kontrak | `KTR-IT` | `KTR-IT/2026/10/0001` |
-| Aset | `AST-IT` | `AST-IT-000123` (tanpa reset) |
+| Tender | `TENDER` | Nilai **> Rp1.000.000.000** |
+| Bidding | `BIDDING` | Nilai **≤ Rp1.000.000.000** |
+| Perpanjangan Khusus (PK) | `SPECIAL_EXTENSION` | Pekerjaan **existing** dari kontrak yang **masih aktif** |
+| Penunjukan Langsung (PL) | `DIRECT_APPOINTMENT` | Pekerjaan baru tanpa perbandingan (jarang; pengadaan diwajibkan tender/bidding) |
+
+- Metode diinput staff sesuai keputusan di luar sistem. Untuk Tender/Bidding, sistem **menyarankan** metode dari nilai dan menampilkan peringatan jika tidak cocok, tetapi tidak memblokir.
+- Ambang disimpan di `AppSetting`, **tidak boleh di-hardcode** (bagian 5.6).
+
+### 5.3 Aturan PVP Forum
+
+- **PVP wajib** jika:
+  - nilai (dalam IDR) **> `PVP_MIN_AMOUNT`** (500.000.000) **DAN** kenaikan dari tahun sebelumnya **> `PVP_MIN_INCREASE_PERCENT`** (5%), **atau**
+  - pengadaan baru tanpa data pembelian tahun sebelumnya dan nilai **> `PVP_MIN_AMOUNT`**.
+- `increasePercent = (amount − previousPurchaseAmount) / previousPurchaseAmount × 100`, dihitung otomatis jika `previousPurchaseAmount` diisi.
+- `Work.pvpRequired` dihitung oleh service, bukan input user. Jika PVP tidak wajib, milestone PVP berstatus `NOT_APPLICABLE`.
+- Jika PVP wajib, **semua milestone setelah PVP harus menunggu PVP berstatus `DONE`**.
+- PVP dianggap selesai bila **minimal 2 Direktur** tercatat menyetujui (`PvpApproval.decision = APPROVED`). Approval dilakukan di luar sistem. Nama direktur diinput sebagai teks karena direktur bukan pengguna SIPITA. Jumlah minimum disimpan di `AppSetting` (`PVP_MIN_DIRECTOR_APPROVALS = 2`).
+
+### 5.4 Template Milestone per Metode
+
+PVP* = hanya berlaku jika PVP wajib (5.3). Milestone dalam satu kurung siku `[ ... ]` boleh berjalan bersamaan.
+
+**Tender / Bidding**
+```
+Memo → RFQ → PVP* ─┬─ MoA Hasil Tender ─┐
+                   ├─ MoA Biaya ────────┴─→ PO → Agreement
+                   └─ LoA (diproses tim di luar IT, diinput staff IT)
+```
+
+**Penunjukan Langsung (PL)**
+```
+Memo PL → PVP* → Approval Pejabat ─┬─ MoA PL ────┐
+                                   └─ MoA Biaya ─┴─→ PO → Agreement baru
+```
+
+**Perpanjangan Khusus (PK)**
+```
+Memo PK (pilih kontrak aktif) → PVP* → Approval Pejabat ─┬─ MoA PK ────┐
+                                                         └─ MoA Biaya ─┴─→ PO → Addendum / Agreement baru
+```
+
+Definisi template (disimpan di `MilestoneTemplate`, bisa diubah admin dari menu Pengaturan; seed sesuai tabel ini):
+
+| Metode | Urutan | Milestone (`MilestoneType`) | Pelaksana (`Executor`) | Prasyarat | Kondisional |
+|---|---|---|---|---|---|
+| TENDER/BIDDING | 1 | `MEMO` | `IT` | – | |
+| | 2 | `RFQ` | `IT` | MEMO | |
+| | 3 | `PVP` | `DIRECTORS` | RFQ | PVP* |
+| | 4 | `MOA_METHOD` (MoA Hasil Tender) | `IT` | PVP | |
+| | 4 | `MOA_COST` (MoA Biaya) | `IT` | PVP | |
+| | 4 | `LOA` | `OTHER_TEAM` | PVP | |
+| | 5 | `PO` | `IT` | MOA_METHOD, MOA_COST | |
+| | 6 | `AGREEMENT` | `IT` | PO | |
+| PL | 1 | `MEMO` (Memo PL) | `IT` | – | |
+| | 2 | `PVP` | `DIRECTORS` | MEMO | PVP* |
+| | 3 | `OFFICIAL_APPROVAL` | `OFFICIAL` | PVP | |
+| | 4 | `MOA_METHOD` (MoA PL) | `IT` | OFFICIAL_APPROVAL | |
+| | 4 | `MOA_COST` | `IT` | OFFICIAL_APPROVAL | |
+| | 5 | `PO` | `IT` | MOA_METHOD, MOA_COST | |
+| | 6 | `AGREEMENT` | `IT` | PO | |
+| PK | 1 | `MEMO` (Memo PK) | `IT` | – | |
+| | 2 | `PVP` | `DIRECTORS` | MEMO | PVP* |
+| | 3 | `OFFICIAL_APPROVAL` | `OFFICIAL` | PVP | |
+| | 4 | `MOA_METHOD` (MoA PK) | `IT` | OFFICIAL_APPROVAL | |
+| | 4 | `MOA_COST` | `IT` | OFFICIAL_APPROVAL | |
+| | 5 | `PO` | `IT` | MOA_METHOD, MOA_COST | |
+| | 6 | `AGREEMENT_OR_ADDENDUM` | `IT` | PO | |
+
+- Prasyarat dianggap terpenuhi bila milestone prasyarat berstatus `DONE` **atau** `NOT_APPLICABLE`.
+- Perubahan template **tidak** mengubah milestone pekerjaan yang sudah ada (hanya untuk pekerjaan baru).
+- LoA pelaksananya `OTHER_TEAM` (tim di luar IT), tetapi tetap bagian dari pekerjaan IT dan diinput staff IT. LoA **tidak** menjadi prasyarat PO.
+
+### 5.5 Validasi yang Memblokir vs Peringatan
+
+**Memblokir** — berlaku untuk input & update **melalui aplikasi**:
+1. Milestone tidak boleh `IN_PROGRESS`/`DONE` sebelum semua prasyaratnya terpenuhi.
+2. **PO tidak boleh dicatat** sebelum MoA sesuai metode **dan** MoA Biaya berstatus `DONE` (berlaku di semua metode).
+3. PVP tidak boleh `DONE` jika approval direktur yang tercatat < `PVP_MIN_DIRECTOR_APPROVALS`.
+4. PK wajib merujuk `sourceAgreementId` yang **aktif** pada tanggal Memo PK.
+5. Milestone akhir PK tidak boleh `DONE` sebelum staff memilih hasilnya: `ADDENDUM` (pada kontrak lama) atau `NEW_AGREEMENT`. Pilihan mengikuti keputusan di luar sistem, sistem tidak menentukan.
+6. Nomor dokumen (memo, RFQ, LoA, PO, agreement, addendum) harus unik.
+
+**Peringatan** (data tetap tersimpan, ditandai di daftar, detail, dan report Kelengkapan Data):
+- Data hasil **import** yang melanggar aturan 1–5 (mis. data 2015 tanpa MoA Biaya) → **tetap masuk** dan ditandai "belum lengkap".
+- Metode tidak cocok dengan ambang nilai.
+- Pekerjaan tidak di-update lebih dari `STALE_WORK_DAYS` hari.
+
+Buat helper murni di `server/src/utils/procurementRules.ts` (mudah di-test): `suggestMethod(amountIdr, settings)`, `isPvpRequired(amountIdr, increasePercent | null, settings)`, `canStartMilestone(milestone, allMilestones)`, `canRecordPo(work)`, `getDataIssues(work)`.
+
+### 5.6 Pengaturan (`AppSetting`, bukan hardcode)
+
+| Key | Default | Keterangan |
+|---|---|---|
+| `TENDER_MIN_AMOUNT` | 1000000000 | Di atas ini → Tender |
+| `PVP_MIN_AMOUNT` | 500000000 | Ambang nilai PVP |
+| `PVP_MIN_INCREASE_PERCENT` | 5 | Ambang kenaikan YoY PVP |
+| `PVP_MIN_DIRECTOR_APPROVALS` | 2 | Minimal direktur yang menyetujui |
+| `STALE_WORK_DAYS` | 7 | Pekerjaan dianggap tidak di-update |
+| `CONTRACT_REMINDER_DAYS` | [90, 60, 30] | Pengingat kontrak jatuh tempo |
+
+### 5.7 Status
+
+- **Pekerjaan (`WorkStatus`):** `ACTIVE, ON_HOLD, COMPLETED, CANCELLED`. `COMPLETED` hanya bisa diset jika milestone terakhir `DONE` (untuk input aplikasi).
+- **Milestone (`MilestoneStatus`):** `NOT_STARTED, IN_PROGRESS, DONE, NOT_APPLICABLE`.
+- **Tahapan saat ini** pekerjaan **dihitung** (bukan disimpan): milestone wajib yang belum `DONE` dan prasyaratnya sudah terpenuhi. Bisa lebih dari satu (paralel).
+- **Agreement:** `ACTIVE, EXPIRING_SOON, EXPIRED, TERMINATED`, dihitung dari `periodEnd` + `CONTRACT_REMINDER_DAYS` oleh job harian.
+
+### 5.8 Penomoran
+
+Nomor dokumen (memo, RFQ, LoA, PO, agreement, addendum) **berasal dari dokumen asli dan diinput manual**. Sistem tidak men-generate nomor dokumen.
+Satu-satunya nomor otomatis adalah kode pekerjaan: `WRK-{YYYY}-{NNNN}` (YYYY = tahun pengadaan, counter per tahun). Gunakan tabel `DocumentSequence` + transaksi `SELECT ... FOR UPDATE`.
 
 ---
 
 ## 6. Skema Database (Prisma — garis besar)
 
-Semua tabel memakai: `id` (UUID), `createdAt`, `updatedAt`. Tabel transaksi utama juga punya `createdById`.
+Semua tabel memakai: `id` (UUID), `createdAt`, `updatedAt`. Tabel data pengadaan juga punya `createdById`, `updatedById`, dan `importBatchId?` (asal import, untuk rollback).
 Nama model PascalCase, nama tabel snake_case via `@@map`. Uang disimpan sebagai `Decimal(18,2)`.
-Gunakan **soft delete** (`deletedAt`) untuk master data (vendor, item, user).
+**Soft delete** (`deletedAt`) untuk semua data pengadaan & master data.
 
-**Master & Auth**
-- `User` (name, email unik, passwordHash, nip, phone, divisionId, approvalLevel?, isActive)
-- `Role`, `UserRole` (many-to-many)
-- `Division` (code, name, headUserId?)
+### Mata Uang
+Setiap tabel bernilai uang menyimpan `amount`, `currency` (ISO 3 huruf, default `IDR`), `exchangeRate` (ke IDR, default 1), dan `amountIdr` (dihitung = amount × exchangeRate). Semua rekap, ambang, dan grafik memakai `amountIdr`. Tampilan detail menunjukkan nilai asli + nilai IDR.
+
+### Master & Auth
+- `User` (employeeId unik, username unik, name, email unik, passwordHash, jobLevel [JobLevel], departmentId, isAdmin, isActive)
+- `UserPermission` (userId, feature [Feature], canView, canCreate, canUpdate, canDelete) — unik per (userId, feature)
+- `Directorate` (code, name) · `Division` (code, name, directorateId) · `Department` (code, name, divisionId)
 - `RefreshToken` (userId, tokenHash, expiresAt, revokedAt)
+- `Vendor` (code unik, name, address, picName, npwp unik, email?, phone?)
 
-**Katalog**
-- `ItemCategory` (HARDWARE, SOFTWARE, LICENSE, NETWORK, SERVICE, CONSUMABLE, dll.)
-- `Item` (code, name, categoryId, unit, isAsset: boolean, minStock, specs JSON)
+### Pekerjaan & Progres
+- `Work` (code unik `WRK-YYYY-NNNN`, title, procurementType [ProcurementType], category [BAU/PROJECT], method [ProcurementMethod], procurementYear, picId → User, requesterDirectorateId?, vendorId?, amount, currency, exchangeRate, amountIdr, previousPurchaseAmount?, increasePercent? Decimal(7,2), pvpRequired, periodStart?, periodEnd?, sourceAgreementId? (wajib untuk PK), pkResult? [ADDENDUM/NEW_AGREEMENT], status [WorkStatus], lastUpdatedAt, notes)
+- `WorkMilestone` (workId, type [MilestoneType], sequence, executor [Executor], status [MilestoneStatus], isConditional, prerequisites MilestoneType[], startedAt?, completedAt?, referenceNo?, notes) — unik per (workId, type)
+- `WorkUpdate` (workId, milestoneId?, authorId, note, statusFrom?, statusTo?, attachmentId?, createdAt) — **log progres; tidak bisa diedit/dihapus**, koreksi ditulis sebagai update baru
+- `MilestoneTemplate` (method, type, sequence, executor, prerequisites MilestoneType[], isConditional, isActive)
 
-**Pengajuan & Approval**
-- `PurchaseRequest` (number, requesterId, divisionId, title, justification, priority [LOW/MEDIUM/HIGH/URGENT], neededDate, estimatedTotal, status)
-- `PurchaseRequestItem` (prId, itemId? atau freeTextName, qty, estimatedUnitPrice, notes)
-- `InternalMemo` (number, prId, subject, body, status, pdfPath)
-- `ApprovalRule` (minAmount, maxAmount?, levels Int[], isActive)
-- `ApprovalStep` (memoId, level, approverId?, status, comment, actedAt, sequence)
+### Dokumen Pengadaan
+- `Memo` (workId, memoNo unik, memoType [MemoType], title, memoDate, requesterName, amount?, currency?, exchangeRate?, amountIdr?, notes) — mencakup memo pengajuan dan semua jenis MoA
+- `Rfq` (workId unik, rfqNo unik, method [TENDER/BIDDING], periodStart, periodEnd, amount, currency, exchangeRate, amountIdr, termOfPayment, loaNo? unik, loaDate?, loaProcessedBy? (nama tim di luar IT))
+- `PvpForum` (workId unik, pvpDate, status [PENDING/APPROVED/REJECTED], notes)
+- `PvpApproval` (pvpForumId, directorName, decision [APPROVED/REJECTED], approvalDate, notes)
+- `PurchaseOrder` (workId, poNo unik, poType [NEW/RENEWAL], poName, poDate, amount, currency, exchangeRate, amountIdr, requesterName, previousPoId?, previousPoNo?, previousPoAmount?, previousPoCurrency?)
+- `PoPaymentTerm` (poId, sequence, description, percentage?, amount, dueDate?, isPaid) — unik per (poId, sequence)
+- `Agreement` (agreementNo unik, agreementType [NEW/RENEWAL], title, vendorId, poId unik, workId, picId, periodStart, periodEnd, amount, currency, exchangeRate, amountIdr, status)
+- `Addendum` (agreementId, workId, addendumNo unik, title, addendumDate, newPeriodEnd?, valueChange?, currency?, poId?, notes)
 
-**Vendor & Harga**
-- `Vendor` (code, name, npwp, address, picName, email, phone, bankName, bankAccount, category, status)
-- `VendorDocument` (vendorId, type [SIUP/NIB/NPWP/AKTA/LAINNYA], fileId, expiresAt?)
-- `VendorRating` (vendorId, poId, onTime 1–5, quality 1–5, price 1–5, service 1–5, notes)
-- `Quotation` (prId, vendorId, quoteNumber, quoteDate, validUntil, totalAmount, isSelected, notes, fileId?)
-- `QuotationItem` (quotationId, prItemId, unitPrice, qty, subtotal)
-- `PriceHistory` (itemId, vendorId, unitPrice, sourceType [QUOTATION/PO], sourceId, recordedAt)
-
-**PO, Penerimaan, Gudang**
-- `PurchaseOrder` (number, prId, vendorId, quotationId, orderDate, expectedDate, subtotal, taxPercent, taxAmount, total, status, terms, pdfPath)
-- `PurchaseOrderItem` (poId, itemId, qty, receivedQty, unitPrice, subtotal)
-- `GoodsReceipt` (number, poId, receivedById, receivedAt, notes, deliveryNoteFileId?)
-- `GoodsReceiptItem` (grId, poItemId, qty, condition [GOOD/DAMAGED])
-- `Warehouse` (code, name, location)
-- `StockBalance` (itemId, warehouseId, qty) — unik per (itemId, warehouseId)
-- `StockMovement` (itemId, warehouseId, type [IN/OUT/ADJUSTMENT/TRANSFER], qty, refType, refId, notes, createdById)
-- `Asset` (assetTag, itemId, serialNumber, poId?, grId?, purchaseDate, purchasePrice, warrantyUntil, status, currentHolderId?, warehouseId?, location, notes)
-- `AssetAssignment` (assetId, userId, assignedAt, returnedAt?, handoverFileId?, notes)
-
-**Kontrak & Anggaran**
-- `Contract` (number, title, vendorId, poId?, type [PURCHASE/RENTAL/MAINTENANCE/LICENSE/SERVICE], startDate, endDate, value, sla, autoRenew, status, reminderDays Int[] default [90,60,30], fileId?)
-- `Budget` (divisionId, year, category?, amount)
-- Realisasi anggaran dihitung dari total PO berstatus ISSUED ke atas (jangan disimpan terpisah, hitung via query).
-
-**Sistem**
+### Import & Sistem
+- `ImportBatch` (fileName, uploadedById, uploadedAt, status [PREVIEW/COMMITTED/ROLLED_BACK/FAILED], totalRows, validRows, warningRows, errorRows, committedAt?, rolledBackAt?)
+- `ImportRowIssue` (batchId, sheet, rowNumber, level [ERROR/WARNING], field?, message)
+- `AppSetting` (key unik, value JSON, description)
 - `Attachment` (fileName, mimeType, size, path, uploadedById, refType, refId)
-- `Notification` (userId, title, message, link, isRead)
-- `AuditLog` (userId, action, entity, entityId, before JSON, after JSON, ip)
+- `Notification` (userId, type, title, message, link, isRead, dedupeKey)
+- `AuditLog` (userId, action, entity, entityId, before JSON, after JSON, source [APP/IMPORT], ip)
 - `DocumentSequence` (prefix, year, lastNumber)
 
-Setiap perubahan status PR/Memo/PO/Kontrak/Aset **wajib** menulis `AuditLog`.
+**Setiap create/update/delete data pengadaan wajib menulis `AuditLog`** (termasuk yang berasal dari import), supaya riwayat perubahan bisa ditelusuri dari halaman detail.
+
+### Enum (di `shared/src/enums.ts` dan Prisma)
+- `ProcurementType`: `RENEWAL_LICENSE, NEW_LICENSE, NEW_APPLICATION`
+- `ProjectCategory`: `BAU, PROJECT`
+- `ProcurementMethod`: `TENDER, BIDDING, SPECIAL_EXTENSION, DIRECT_APPOINTMENT`
+- `MemoType`: `MEMO_PROCUREMENT, MEMO_PL, MEMO_PK, MOA_TENDER_RESULT, MOA_PL, MOA_PK, MOA_COST`
+- `MilestoneType`: `MEMO, RFQ, PVP, OFFICIAL_APPROVAL, MOA_METHOD, MOA_COST, LOA, PO, AGREEMENT, AGREEMENT_OR_ADDENDUM`
+- `Executor`: `IT, OTHER_TEAM, DIRECTORS, OFFICIAL`
+- `MilestoneStatus`: `NOT_STARTED, IN_PROGRESS, DONE, NOT_APPLICABLE`
+- `WorkStatus`: `ACTIVE, ON_HOLD, COMPLETED, CANCELLED`
+- `PkResult`: `ADDENDUM, NEW_AGREEMENT`
+- `PoType` / `AgreementType`: `NEW, RENEWAL`
+- `JobLevel`: `STAFF, MANAGER_L1, MANAGER_L2`
+- `Feature`: `DASHBOARD, WORK, MONITORING, AGREEMENT, VENDOR, REPORT, IMPORT, SETTINGS`
+
+### Sinkronisasi Dokumen ↔ Milestone
+Saat dokumen dicatat, milestone terkait otomatis menjadi `DONE` (jika prasyarat terpenuhi untuk input aplikasi). `completedAt` diambil dari tanggal dokumen:
+
+| Dokumen | Milestone |
+|---|---|
+| Memo `MEMO_PROCUREMENT` / `MEMO_PL` / `MEMO_PK` | `MEMO` |
+| `Rfq` | `RFQ` |
+| `PvpForum` berstatus APPROVED | `PVP` |
+| Memo `MOA_TENDER_RESULT` / `MOA_PL` / `MOA_PK` (sesuai metode) | `MOA_METHOD` |
+| Memo `MOA_COST` | `MOA_COST` |
+| `Rfq.loaNo` + `loaDate` terisi | `LOA` |
+| `PurchaseOrder` | `PO` |
+| `Agreement` | `AGREEMENT` / `AGREEMENT_OR_ADDENDUM` (pkResult = NEW_AGREEMENT) |
+| `Addendum` | `AGREEMENT_OR_ADDENDUM` (pkResult = ADDENDUM) |
+
+`OFFICIAL_APPROVAL` tidak punya tabel dokumen; diisi lewat milestone (`referenceNo`, `completedAt`, `notes` berisi nama/jabatan pejabat).
+
+### ERD
+
+```mermaid
+erDiagram
+    Directorate ||--o{ Division : "membawahi"
+    Division ||--o{ Department : "membawahi"
+    Department ||--o{ User : "anggota"
+    User ||--o{ UserPermission : "punya"
+
+    User ||--o{ Work : "PIC"
+    User ||--o{ WorkUpdate : "menulis"
+    Vendor |o--o{ Work : "vendor"
+    Agreement |o--o{ Work : "kontrak sumber (PK)"
+
+    Work ||--o{ WorkMilestone : "milestone"
+    Work ||--o{ WorkUpdate : "log progres"
+    WorkMilestone |o--o{ WorkUpdate : "terkait"
+    MilestoneTemplate }o--o{ WorkMilestone : "membentuk"
+
+    Work ||--o{ Memo : "memo & MoA"
+    Work ||--o| Rfq : "1 pekerjaan 1 RFQ (+LoA)"
+    Work ||--o| PvpForum : "1 pekerjaan 1 PVP"
+    PvpForum ||--o{ PvpApproval : "approval direktur"
+    Work ||--o{ PurchaseOrder : "PO"
+    PurchaseOrder ||--o{ PoPaymentTerm : "1 PO banyak TOP"
+    PurchaseOrder |o--o{ PurchaseOrder : "renewal dari"
+    PurchaseOrder ||--o| Agreement : "1 agreement 1 PO"
+    Work |o--o{ Agreement : "menghasilkan"
+    Agreement ||--o{ Addendum : "1 agreement banyak addendum"
+    Work |o--o{ Addendum : "menghasilkan (PK)"
+
+    Vendor ||--o{ Agreement : "pihak kontrak"
+    User ||--o{ Agreement : "PIC"
+
+    ImportBatch ||--o{ ImportRowIssue : "masalah baris"
+    ImportBatch |o--o{ Work : "asal data"
+```
+
+**Kardinalitas yang wajib dijaga (constraint `@unique` / FK):**
+- 1 Pekerjaan → 1 RFQ, 1 PVP Forum, banyak Memo/MoA, banyak PO, banyak milestone & log update
+- 1 PO → banyak Term of Payment; 1 Agreement → 1 PO (`Agreement.poId` unik); 1 Agreement → banyak Addendum
+- 1 Vendor → banyak Pekerjaan dan Agreement
+- 1 User → banyak Pekerjaan (sebagai PIC) dan log update
 
 ---
 
-## 7. Konvensi API
+## 7. Import Excel
 
-- Base URL: `/api/v1`
-- RESTful, nama resource jamak & kebab-case: `/purchase-requests`, `/goods-receipts`
-- Aksi bisnis memakai sub-resource POST: `POST /purchase-requests/:id/submit`, `POST /approvals/:id/approve`, `POST /approvals/:id/reject`, `POST /quotations/:id/select`, `POST /purchase-orders/:id/issue`, `POST /assets/:id/assign`, `POST /assets/:id/return`
-- List endpoint mendukung query: `page`, `limit` (default 20, max 100), `search`, `sort` (`field:asc|desc`), dan filter spesifik (`status`, `divisionId`, `dateFrom`, `dateTo`)
-- Format response sukses:
-  ```json
-  { "success": true, "data": { ... }, "meta": { "page": 1, "limit": 20, "total": 134 } }
-  ```
-- Format response error (ditangani `errorHandler` terpusat):
-  ```json
-  { "success": false, "error": { "code": "VALIDATION_ERROR", "message": "Pesan dalam Bahasa Indonesia", "details": [] } }
-  ```
-- Buat class `AppError(statusCode, code, message)`; jangan `throw` string mentah.
-- Semua input divalidasi Zod via middleware `validate({ body, query, params })`.
-- Operasi multi-tabel (approve terakhir → update PR, GR → update stok + aset) **wajib** memakai `prisma.$transaction`.
+Data pengadaan masuk **hanya lewat import Excel** (historis 2015–sekarang dan data massal). Form di aplikasi dipakai untuk **update progres, koreksi data, dan melengkapi dokumen**.
 
-### Endpoint Dashboard
-- `GET /dashboard/summary` → kartu KPI (PR per status, total belanja bulan ini, kontrak ≤90 hari, item stok minimum, approval menunggu saya)
-- `GET /dashboard/spending?groupBy=month|vendor|category|division&year=2026`
-- `GET /dashboard/lead-time` → rata-rata hari dari SUBMITTED → RECEIVED
-- `GET /dashboard/vendor-performance`
-- `GET /dashboard/budget-absorption?year=2026`
-- Dashboard menyesuaikan role: Requester hanya melihat ringkasan PR miliknya.
+- **Acuan format: `docs/import/template-import.xlsx`** (contoh dari user, berisi data contoh). Template resmi di-generate dari kode (`GET /imports/template`) dengan struktur yang **sama persis** (nama sheet, header, urutan kolom, dropdown) tetapi tanpa data contoh. Sheet: `Petunjuk`, `Vendor`, `Pekerjaan`, `Memo`, `RFQ`, `PVP`, `PVP_Approval`, `Approval_Pejabat`, `PO`, `PO_TOP`, `Agreement`, `Addendum`, dan sheet tersembunyi `Daftar` (sumber dropdown).
+- Header berbahasa Indonesia; tanda `*` di header = wajib (abaikan `*` saat mencocokkan header). Kolom enum berisi **label Bahasa Indonesia** (mis. `Perpanjangan Khusus`, `MoA Biaya`); importer memetakan label → kode enum sesuai tabel di sheet `Petunjuk`.
+- Kolom berlabel `(otomatis)` berisi rumus Excel. Importer **mengabaikan** kolom ini dan menghitung ulang di server.
+- Sheet `Approval_Pejabat` mengisi milestone `OFFICIAL_APPROVAL` (nama pejabat, jabatan, no. referensi, tanggal). Tanggal kosong = milestone `IN_PROGRESS`.
+- Baris antar-sheet dihubungkan dengan **kunci bisnis**, bukan UUID: `Kode Pekerjaan` (boleh kosong untuk pekerjaan baru, maka di-generate dan dihubungkan lewat kolom `Ref Baris`), `No. PO`, `No. Agreement`, `Kode Vendor`.
+- **Alur import:** upload → parse & validasi → status `PREVIEW` (tampilkan ringkasan + daftar `ImportRowIssue`) → user klik **Simpan** → `COMMITTED` dalam satu `prisma.$transaction`.
+  - `ERROR` (baris ditolak): kolom wajib kosong, format tanggal/angka salah, enum tidak dikenal, nomor dokumen duplikat dengan data lain, referensi tidak ditemukan.
+  - `WARNING` (baris tetap masuk, ditandai belum lengkap): pelanggaran aturan bisnis 5.5 (mis. PO tanpa MoA Biaya, PVP wajib tapi tidak ada data PVP).
+  - User bisa memilih **simpan baris valid saja** atau batalkan.
+- **Upsert berdasarkan nomor dokumen**: jika nomor sudah ada, data di-update (tercatat di `AuditLog` dengan `source = IMPORT`), bukan duplikat.
+- **Rollback**: admin dapat membatalkan batch `COMMITTED` → soft delete data yang dibuat batch itu dan kembalikan data yang di-update ke nilai `before` di `AuditLog`. Rollback ditolak jika data dari batch itu sudah diubah lewat aplikasi setelahnya (tampilkan daftar konfliknya).
+- Milestone untuk data import dibentuk dari template, lalu statusnya diisi dari dokumen yang ada (bagian 6 → Sinkronisasi), **tanpa** validasi blokir.
+- Proses import file besar (> 2.000 baris) tidak boleh memblokir request: proses bertahap dan tampilkan progres.
 
 ---
 
-## 8. Konvensi Frontend
+## 8. Konvensi API
+
+- Base URL: `/api/v1`. Resource jamak & kebab-case.
+- List endpoint mendukung `page`, `limit` (default 20, max 100), `search`, `sort` (`field:asc|desc`), dan filter (`year`, `yearFrom`, `yearTo`, `method`, `procurementType`, `category`, `vendorId`, `picId`, `status`, `hasIssues`).
+- Format response sukses: `{ "success": true, "data": { ... }, "meta": { "page": 1, "limit": 20, "total": 134 } }`
+- Format response error (ditangani `errorHandler` terpusat): `{ "success": false, "error": { "code": "VALIDATION_ERROR", "message": "Pesan dalam Bahasa Indonesia", "details": [] } }`
+- Kode error aturan bisnis: `MILESTONE_PREREQUISITE_NOT_MET`, `PO_REQUIRES_MOA`, `PVP_INSUFFICIENT_APPROVALS`, `PK_SOURCE_AGREEMENT_INACTIVE`, `PK_RESULT_REQUIRED`, `DUPLICATE_DOCUMENT_NUMBER`, `NOT_WORK_OWNER`.
+- Class `AppError(statusCode, code, message)`; jangan `throw` string mentah. Semua input divalidasi Zod via `validate({ body, query, params })`.
+- Operasi multi-tabel (catat dokumen + update milestone + tulis log + audit) **wajib** memakai `prisma.$transaction`.
+
+Endpoint utama:
+- `GET/POST /works`, `GET/PATCH/DELETE /works/:id`, `GET /works/mine`
+- `PATCH /works/:id/milestones/:milestoneId` (status, tanggal, referensi) — divalidasi aturan 5.5
+- `GET/POST /works/:id/updates` (log progres)
+- `POST /works/:id/reassign` (manager: ganti PIC)
+- Dokumen: `/works/:id/memos`, `/works/:id/rfq`, `/works/:id/pvp` (+ `/approvals`), `/works/:id/purchase-orders` (+ `/:poId/payment-terms`), `/agreements`, `/agreements/:id/addendums`
+- `GET /works/:id/history` (gabungan log update + audit log, urut waktu)
+- `GET /procurement-rules/evaluate?amountIdr=&previousPurchaseAmount=` → saran metode + apakah PVP wajib (preview di form)
+- Import: `GET /imports/template`, `POST /imports` (upload → preview), `GET /imports/:id`, `POST /imports/:id/commit`, `POST /imports/:id/rollback`
+- Dashboard & report: lihat bagian 10. Semua endpoint report menerima `format=json|xlsx|pdf`.
+
+---
+
+## 9. Konvensi Frontend
 
 - Layout: **sidebar** (DaisyUI `drawer` + `menu`) + **navbar** (notifikasi bell, toggle tema, profil). Responsif — sidebar jadi drawer di mobile.
-- Gunakan komponen DaisyUI sebagai dasar: `btn`, `card`, `table`, `badge`, `modal`, `input`, `select`, `textarea`, `steps`, `stats`, `tabs`, `alert`, `toast`, `loading`, `drawer`, `menu`, `dropdown`, `timeline`.
-- Warna badge status konsisten via satu komponen `StatusBadge` + map (gunakan varian `badge-soft` agar sesuai gaya Velzon):
-  - Draft → `badge-ghost`, Pending/Submitted → `badge-warning`, Approved/Active/Available → `badge-success`, Rejected/Expired/Broken → `badge-error`, PO Issued/In Use → `badge-info`, Completed → `badge-primary`
-- Halaman detail PR menampilkan **timeline** (DaisyUI `timeline` / `steps`) dari alur status & riwayat approval.
-- Form uang memakai `CurrencyInput` (tampilan `Rp 1.250.000`, value number).
-- Semua tabel list: pencarian, filter, sorting, pagination **server-side**, dan tombol export CSV.
-- Loading state: skeleton DaisyUI; error state: `alert alert-error`; data kosong: `EmptyState`.
-- Konfirmasi aksi penting (submit, approve, reject, cancel, issue PO) memakai `ConfirmModal`. Reject wajib isi alasan.
-- Query key TanStack Query: `['purchase-requests', params]`, `['purchase-requests', id]` — invalidate setelah mutasi.
+- Komponen DaisyUI sebagai dasar: `btn`, `card`, `table`, `badge`, `modal`, `input`, `select`, `textarea`, `steps`, `stats`, `tabs`, `alert`, `toast`, `loading`, `drawer`, `menu`, `dropdown`, `timeline`.
+- `StatusBadge` (varian `badge-soft`): Not started/Draft → `badge-ghost`, In progress/On hold → `badge-warning`, Done/Active/Completed → `badge-success`, Expired/Cancelled/Rejected → `badge-error`, N/A → `badge-ghost` + teks redup, Expiring soon → `badge-warning`.
+- `DataIssueBadge`: tanda peringatan kecil (`badge badge-soft badge-warning` + ikon) di baris/detail yang punya masalah kelengkapan data; tooltip berisi daftar masalahnya.
+- **`MilestoneTrack`**: visualisasi milestone di detail pekerjaan dengan cabang paralel (lihat bagian 5.4). Tiap node menampilkan status, pelaksana (IT / Tim di luar IT / Direksi / Pejabat), dan tanggal selesai. Node yang belum bisa dimulai tampak terkunci dengan alasan prasyaratnya.
+- Form uang memakai `CurrencyInput` + pilihan mata uang + kurs (kurs disembunyikan bila IDR).
+- Semua tabel list: pencarian, filter, sorting, pagination **server-side**, export Excel.
+- **Klik data di grafik** (bar/segmen) membuka daftar data yang membentuk angka tersebut (drill-down) dengan filter yang sama.
+- Loading: skeleton DaisyUI; error: `alert alert-error`; kosong: `EmptyState`.
+- Aksi penting (hapus, ubah PIC, commit/rollback import) memakai `ConfirmModal`.
+- Query key TanStack Query: `['works', params]`, `['works', id]`, `['works', id, 'updates']` — invalidate setelah mutasi.
 - Semua teks UI dalam Bahasa Indonesia.
 
 ### Tema & Desain Visual (Velzon)
@@ -393,28 +544,11 @@ Seluruh UI mengikuti tampilan template admin **Velzon**: flat, bersih, kartu put
     background: color-mix(in oklab, currentColor 15%, transparent);
   }
   .menu-velzon .menu-title { @apply text-xs font-semibold uppercase tracking-wider text-base-content/50; }
-}
-
-/* daisyUI 5 menaruh komponennya di @layer utilities → override state-nya harus di luar layer. */
-.menu-velzon {
-  /* aria-current="page" dari NavLink dianggap aktif oleh daisyUI; jadikan flat, bukan neutral. */
-  --menu-active-bg: transparent;
-  --menu-active-fg: var(--color-primary);
-}
-.menu-velzon li > a { color: color-mix(in oklab, var(--color-base-content) 70%, transparent); }
-.menu-velzon li > a:hover,
-.menu-velzon li > a:focus-visible { background-color: transparent; color: var(--color-primary); }
-.menu-velzon li > a.active { background-color: transparent; color: var(--color-primary); font-weight: 500; }
-
-/* Fokus ala Velzon: ring tipis primary, bukan outline tebal base-content bawaan daisyUI. */
-:is(.input, .select, .textarea):is(:focus, :focus-within) {
-  --input-color: color-mix(in oklab, var(--color-primary) 60%, transparent);
-  outline-width: 1px;
-  outline-offset: 0;
+  .menu-velzon li > a { @apply text-base-content/70; }
+  .menu-velzon li > a:hover { @apply bg-transparent text-primary; }
+  .menu-velzon li > a.active { @apply bg-transparent text-primary font-medium; }
 }
 ```
-
-- **Penting:** override untuk state komponen daisyUI (aktif, hover, fokus) taruh **di luar** `@layer`. Di dalam `@layer components`, override itu kalah prioritas dari daisyUI. Untuk menu aktif, pakai variabel `--menu-active-bg` / `--menu-active-fg`.
 
 - Font **Hanken Grotesk** dimuat via `<link>` Google Fonts di `client/index.html` (bukan `@import url()` di CSS, karena `@import` harus di paling atas).
 - `<html data-theme="velzon">` di `client/index.html`. `themeStore` (Zustand, persist ke `localStorage`) hanya men-toggle `velzon` ↔ `velzon-dark` dengan mengubah `document.documentElement.dataset.theme`. Default mengikuti `prefers-color-scheme`.
@@ -425,74 +559,91 @@ Seluruh UI mengikuti tampilan template admin **Velzon**: flat, bersih, kartu put
 | Token | Dipakai untuk |
 |---|---|
 | `primary` (indigo) | link, menu aktif, tombol aksi utama, seri grafik utama |
-| `secondary` (coral) | aksi "Tambah …"/"Buat …", chip filter periode (Semua / 1B / 6B / 1T) |
-| `accent` (cyan) | badge jumlah notifikasi/keranjang, tombol floating |
-| `success` / `error` | kenaikan / penurunan %, badge "Baru" / "Penting" |
-| `warning` | sorotan anggaran/saldo, item mendekati stok minimum |
+| `secondary` (coral) | aksi "Tambah …"/"Import …", chip filter periode |
+| `accent` (cyan) | badge jumlah notifikasi, tombol floating |
+| `success` / `error` | kenaikan / penurunan %, status selesai / bermasalah |
+| `warning` | peringatan kelengkapan data, kontrak mendekati jatuh tempo, pekerjaan tidak di-update |
 | `base-200` | latar halaman; `base-100` = card/sidebar/navbar; `base-300` = border |
 
 **Aturan styling (wajib)**
 - Hanya pakai token tema (`bg-base-100`, `text-primary`, `btn-secondary`, `border-base-300`, …). **Dilarang** hardcode hex atau palet Tailwind (`blue-500`, `gray-100`, `#687cfe`) di komponen.
 - Radius tetap kecil (dari tema). Hindari `rounded-xl`/`rounded-2xl`, shadow tebal (`shadow-lg` hanya untuk dropdown/modal/FAB), dan gradient.
-- Tombol: aksi utama `btn btn-primary`; aksi sekunder pakai varian soft (`btn btn-soft btn-secondary`, `btn btn-sm btn-soft btn-primary`); aksi berbahaya `btn btn-error` / `btn-soft btn-error`.
+- Tombol: aksi utama `btn btn-primary`; aksi sekunder varian soft (`btn btn-soft btn-secondary`, `btn btn-sm btn-soft btn-primary`); aksi berbahaya `btn btn-error` / `btn-soft btn-error`.
 - Tidak menambah UI library lain (shadcn, MUI, Bootstrap) dan tidak mengubah token tema tanpa diminta.
 
 **Pola komponen**
-- **AppLayout:** `drawer lg:drawer-open`. Sidebar `bg-base-100 w-60 border-r border-base-300`, logo "SIPITA" di atas (tinggi sama dengan navbar), `menu menu-velzon` dengan `menu-title` per grup (Menu, Pengadaan, Gudang, Pengaturan), ikon lucide 18px. Navbar `navbar bg-base-100 border-b border-base-300 sticky top-0`: tombol hamburger, search `input input-sm bg-base-200 border-0`, lalu di kanan: toggle tema, bell notifikasi (`indicator` + `badge badge-error badge-xs`), blok profil (avatar + nama + role) dengan latar `bg-base-200`. Konten: `p-6 space-y-6` di atas `bg-base-200`.
-- **PageHeader:** judul `text-lg font-semibold` + subjudul `text-sm text-base-content/60` di kiri; filter tanggal & tombol aksi di kanan.
-- **StatCard (KPI dashboard):** `card p-4`. Baris atas: `.stat-label` + persentase perubahan (`text-success` dengan ikon `TrendingUp` / `text-error` dengan `TrendingDown`). Nilai besar `text-2xl font-semibold`, link `link link-primary text-sm` di bawahnya, dan `.icon-soft text-{warna}` di kanan bawah. Grid `grid gap-6 sm:grid-cols-2 xl:grid-cols-4`.
-- **Card dengan header:** `card` → `.card-header` (judul + tombol `btn-xs btn-soft`) → isi. Strip ringkasan di dalam card: `grid divide-x divide-dashed divide-base-300 bg-base-200/60 text-center`.
-- **DataTable:** dibungkus `card`; toolbar (search + filter + export) di `.card-header`; `table` dengan header `text-xs uppercase text-base-content/60 bg-base-200/60`; baris hover `hover:bg-base-200/40`; pagination `join` di footer.
-- **Form:** di dalam `card`, `fieldset` + `label` DaisyUI, input ukuran default, tombol simpan di kanan bawah.
-- **Grafik (Recharts):** ambil warna dari CSS variable lewat `components/charts/chartColors.ts` (mis. `getComputedStyle(document.documentElement).getPropertyValue('--color-primary')`), urutan seri: primary → success → warning → secondary → info. Bar ramping (`barSize` ±16), grid dashed `var(--color-base-300)`, teks sumbu `text-base-content/60`. Re-render saat tema berganti.
+- **AppLayout:** `drawer lg:drawer-open`. Sidebar `bg-base-100 w-60 border-r border-base-300`, logo "SIPITA" di atas (tinggi sama dengan navbar), `menu menu-velzon` dengan `menu-title` per grup (Menu, Pengadaan, Report, Pengaturan), ikon lucide 18px. Navbar `navbar bg-base-100 border-b border-base-300 sticky top-0`: tombol hamburger, search `input input-sm bg-base-200 border-0` (cari kode pekerjaan / nomor dokumen / vendor), lalu di kanan: toggle tema, bell notifikasi (`indicator` + `badge badge-error badge-xs`), blok profil (avatar + nama + jabatan) dengan latar `bg-base-200`. Konten: `p-6 space-y-6` di atas `bg-base-200`.
+- **PageHeader:** judul `text-lg font-semibold` + subjudul `text-sm text-base-content/60` di kiri; filter & tombol aksi di kanan.
+- **StatCard:** `card p-4`. Baris atas: `.stat-label` + persentase perubahan (`text-success` + `TrendingUp` / `text-error` + `TrendingDown`). Nilai `text-2xl font-semibold`, link `link link-primary text-sm`, dan `.icon-soft text-{warna}` di kanan bawah. Grid `grid gap-6 sm:grid-cols-2 xl:grid-cols-4`.
+- **Card dengan header:** `card` → `.card-header` (judul + tombol `btn-xs btn-soft`) → isi. Strip ringkasan: `grid divide-x divide-dashed divide-base-300 bg-base-200/60 text-center`.
+- **DataTable:** dibungkus `card`; toolbar (search + filter + export) di `.card-header`; header `text-xs uppercase text-base-content/60 bg-base-200/60`; baris hover `hover:bg-base-200/40`; pagination `join` di footer.
+- **Form:** di dalam `card`, `fieldset` + `label` DaisyUI, tombol simpan di kanan bawah.
+- **Grafik (Recharts):** warna dari CSS variable lewat `components/charts/chartColors.ts`, urutan seri: primary → success → warning → secondary → info. Bar ramping (`barSize` ±16), grid dashed `var(--color-base-300)`, teks sumbu `text-base-content/60`. Re-render saat tema berganti.
 
 ---
+
+## 10. Menu, Dashboard & Report
 
 ### Halaman
-| Path | Halaman | Role |
+| Path | Halaman | Akses |
 |---|---|---|
-| `/login` | Login | publik |
-| `/` | Dashboard | semua |
-| `/pengajuan`, `/pengajuan/baru`, `/pengajuan/:id` | Purchase Request | semua (data dibatasi) |
-| `/persetujuan` | Inbox approval saya | APPROVER |
-| `/memo`, `/memo/:id` | Memo internal + preview/download PDF | PROCUREMENT, APPROVER |
-| `/vendor`, `/vendor/:id` | Vendor + dokumen + rating | PROCUREMENT |
-| `/penawaran/:prId` | Perbandingan penawaran (side-by-side) | PROCUREMENT |
-| `/purchase-order`, `/purchase-order/:id` | PO + PDF | PROCUREMENT |
-| `/kontrak`, `/kontrak/:id` | Kontrak + countdown jatuh tempo | PROCUREMENT |
-| `/gudang/stok`, `/gudang/penerimaan`, `/gudang/mutasi` | Gudang | WAREHOUSE |
-| `/aset`, `/aset/:id` | Aset IT + riwayat pemegang | WAREHOUSE |
-| `/harga` | Riwayat & tren harga item | PROCUREMENT, VIEWER |
-| `/anggaran` | Anggaran vs realisasi | PROCUREMENT, VIEWER |
-| `/pengaturan/*` | User, divisi, katalog item, aturan approval, gudang | SUPER_ADMIN |
+| `/login` | Login (layout terpisah, card di tengah di atas `bg-base-200`) | publik |
+| `/` | Dashboard (berbeda untuk staff & manager) | semua |
+| `/pekerjaan/saya` | Pekerjaan Saya + tombol "Update progres" | semua |
+| `/pekerjaan` | Semua pekerjaan & data pengadaan (filter lengkap) | semua |
+| `/pekerjaan/:id` | Detail: ringkasan, `MilestoneTrack`, tab dokumen (Memo & MoA, RFQ & LoA, PVP, PO & TOP, Agreement/Addendum), log update, riwayat perubahan | semua (ubah sesuai bagian 4) |
+| `/monitoring` | Monitoring Tim | MANAGER_L1, MANAGER_L2 |
+| `/kontrak`, `/kontrak/:id` | Agreement + addendum + countdown jatuh tempo | semua |
+| `/vendor`, `/vendor/:id` | Vendor + riwayat pengadaan | semua |
+| `/report/*` | Report (lihat di bawah) | semua |
+| `/import`, `/import/:batchId` | Import Excel: upload, preview, riwayat batch | permission `IMPORT` |
+| `/pengaturan/*` | User & permission, organisasi, template milestone, ambang & pengaturan | admin |
 
-Halaman **Login**: layout terpisah (tanpa sidebar), card login di tengah di atas `bg-base-200`, logo + nama aplikasi di atas form.
+### Dashboard
+- **Staff:** pekerjaan aktif saya, pekerjaan saya yang belum di-update > `STALE_WORK_DAYS`, milestone yang sedang menunggu tim lain/direksi/pejabat, kontrak saya yang akan habis.
+- **Manager:** KPI tim (pekerjaan aktif, selesai tahun ini, total nilai pengadaan tahun ini, kontrak ≤ 90 hari), beban kerja per staff, pekerjaan tidak di-update, sebaran pekerjaan per tahapan, grafik nilai pengadaan per tahun.
+
+### Monitoring Tim (manager)
+- Tabel per staff: jumlah pekerjaan aktif / on hold / selesai, pekerjaan terlama tanpa update, tanggal update terakhir.
+- Klik staff → daftar pekerjaannya + tahapan saat ini + log update terbaru.
+- Tampilan papan (kolom per tahapan) untuk melihat posisi semua pekerjaan.
+- Penanda pekerjaan yang **menunggu pihak di luar IT** (LoA, direksi, pejabat) vs yang tertahan di IT.
+
+### Report (semua bisa difilter, drill-down, export Excel/PDF)
+| Path | Report |
+|---|---|
+| `/report/rekap-tahunan` | **Rekap nilai pengadaan per tahun (2015–sekarang)**, bisa dipecah per metode, jenis, BAU/Project, vendor, direktorat peminta |
+| `/report/tren` | Tren kenaikan year-to-year per lisensi/aplikasi/vendor |
+| `/report/jatuh-tempo` | Kalender & daftar agreement yang habis dalam 30/60/90 hari (perencanaan renewal) |
+| `/report/vendor` | Riwayat & total pengadaan per vendor |
+| `/report/kepatuhan` | Kepatuhan PVP (wajib tapi belum tercatat), PO tanpa MoA Biaya/MoA metode, dokumen belum lengkap — sumber utama pembersihan data historis |
+| `/report/kinerja-tim` | Pekerjaan per staff (aktif/selesai/terlambat), rata-rata durasi per tahapan, porsi waktu di IT vs di luar IT |
+
+Endpoint: `GET /dashboard/staff`, `GET /dashboard/manager`, `GET /reports/annual-summary`, `/reports/yoy-trend`, `/reports/expiring-agreements`, `/reports/vendor-history`, `/reports/compliance`, `/reports/team-performance`. Agregasi dilakukan di database (Prisma `groupBy` / query ber-parameter), bukan di JavaScript atas seluruh data.
 
 ---
 
-## 9. Job Terjadwal (node-cron, zona Asia/Jakarta)
+## 11. Job Terjadwal (node-cron, zona Asia/Jakarta)
 
-- **07:00 setiap hari** — cek kontrak yang `endDate` tepat 90/60/30/7 hari lagi → notifikasi + email ke PROCUREMENT; update status `EXPIRING_SOON` / `EXPIRED`.
-- **07:15 setiap hari** — cek `StockBalance.qty <= Item.minStock` → notifikasi WAREHOUSE.
-- **07:30 setiap hari** — cek garansi aset yang habis ≤30 hari → notifikasi WAREHOUSE.
-- **Setiap jam** — approval yang PENDING > 3 hari → reminder ke approver.
+- **07:00 setiap hari** — update status Agreement (`EXPIRING_SOON` / `EXPIRED`) berdasarkan `CONTRACT_REMINDER_DAYS`; notifikasi ke PIC agreement + semua manager pada hari H-90/60/30.
+- **08:00 setiap hari kerja** — pekerjaan `ACTIVE` yang `lastUpdatedAt` > `STALE_WORK_DAYS` → notifikasi ke PIC; ringkasannya ke manager.
 
-Job harus idempoten (jangan kirim notifikasi ganda di hari yang sama).
+Job harus idempoten (pakai `Notification.dedupeKey`, jangan kirim notifikasi ganda di hari yang sama).
 
 ---
 
-## 10. Keamanan
+## 12. Keamanan
 
-- Password di-hash bcrypt (cost 12). Jangan pernah mengembalikan `passwordHash` di response (gunakan Prisma `select`/`omit`).
-- Access token di header `Authorization: Bearer`, refresh token di httpOnly + secure + sameSite cookie.
-- Rate limit pada `/auth/login`.
-- Validasi upload: whitelist mime (pdf, jpg, png, xlsx, docx), maks 10 MB, nama file di-generate ulang (UUID). File hanya bisa diunduh lewat endpoint ber-auth, bukan static public.
+- Password di-hash bcrypt (cost 12). Jangan pernah mengembalikan `passwordHash` di response.
+- Access token di header `Authorization: Bearer`, refresh token di httpOnly + secure + sameSite cookie. Rate limit pada `/auth/login`.
+- Upload: whitelist mime (xlsx untuk import; pdf, jpg, png, xlsx, docx untuk lampiran), maks 10 MB (import maks 20 MB), nama file di-generate ulang (UUID). File hanya bisa diunduh lewat endpoint ber-auth.
+- Parsing Excel: abaikan formula & macro (baca nilai saja), batasi jumlah baris per sheet, tolak file yang bukan `.xlsx` asli.
 - Semua query lewat Prisma (tidak ada raw SQL dari input user tanpa parameter).
-- Pemeriksaan kepemilikan data (requester hanya PR sendiri) dilakukan di service.
+- Cek kepemilikan pekerjaan (staff hanya miliknya) dilakukan di service.
 
 ---
 
-## 11. Environment Variables
+## 13. Environment Variables
 
 `server/.env.example`
 ```
@@ -506,6 +657,7 @@ JWT_REFRESH_EXPIRES=7d
 CLIENT_URL=http://localhost:5173
 UPLOAD_DIR=./uploads
 MAX_UPLOAD_MB=10
+MAX_IMPORT_MB=20
 SMTP_HOST=
 SMTP_PORT=587
 SMTP_USER=
@@ -524,69 +676,74 @@ Validasi env saat startup di `server/src/config/env.ts` dengan Zod — gagal cep
 
 ---
 
-## 12. Perintah
+## 14. Perintah
 
 ```bash
-# Database
 docker compose up -d                      # jalankan postgres + pgadmin
 
-# Root
 npm install                               # install semua workspace
-npm run dev                               # jalankan client + server bersamaan (concurrently)
+npm run dev                               # client + server bersamaan
 npm run lint
 npm run test
 
-# Server
-npm run dev -w server                     # node --watch + tsx loader
+npm run dev -w server
 npm run db:migrate -w server              # prisma migrate dev
 npm run db:seed -w server                 # prisma db seed
 npm run db:studio -w server               # prisma studio
 npm run build -w server
 
-# Client
 npm run dev -w client                     # vite (port 5173)
 npm run build -w client
 ```
 
 ### Seed Data (wajib ada)
-- 6 user contoh, satu per role (password: `Password123!`), termasuk 3 approver level 1–3
-- 5 divisi (IT, Keuangan, HRD, Operasional, Marketing)
-- 3 aturan approval sesuai ambang di bagian 5
-- 10 kategori + ±30 item katalog IT (laptop, monitor, switch, lisensi Microsoft 365, dll.)
-- 8 vendor IT contoh, 1 gudang utama
-- Beberapa PR di berbagai status, 3 kontrak (salah satu akan berakhir <30 hari), aset & stok contoh
-- Anggaran tahun berjalan per divisi
+- Organisasi: 3 direktorat, divisi & departemen termasuk departemen IT SAPM
+- User IT SAPM (password: `Password123!`): 1 admin, 1 `MANAGER_L2`, 1 `MANAGER_L1`, 4 `STAFF`, lengkap dengan `UserPermission`
+- `AppSetting` sesuai bagian 5.6; `MilestoneTemplate` sesuai tabel bagian 5.4
+- 10 vendor software/lisensi contoh
+- ±40 pekerjaan tersebar 2015–2026 di semua metode & jenis (Renewal License Office 365, Entra ID P1, aplikasi baru, dll.), sebagian USD, termasuk:
+  - pekerjaan aktif di berbagai tahapan (ada yang menunggu LoA, menunggu PVP, menunggu pejabat)
+  - pekerjaan yang tidak di-update > 7 hari
+  - Tender dengan PVP (2 approval direktur), Bidding tanpa PVP, 1 PL, 1 PK berakhir Addendum, 1 PK berakhir Agreement baru
+  - data "hasil import" tanpa MoA Biaya (untuk report kepatuhan)
+  - agreement yang habis < 30 hari
+- Log update untuk pekerjaan aktif
 
 ---
 
-## 13. Tahapan Pengerjaan (kerjakan berurutan)
+## 15. Tahapan Pengerjaan (kerjakan berurutan)
 
-1. **Setup** — monorepo, Docker Postgres, Vite + Tailwind v4 + DaisyUI v5 **dengan tema `velzon` / `velzon-dark`** (bagian 8), font Hanken Grotesk, Express + Prisma, ESLint/Prettier, `shared` package
-2. **Auth & RBAC** — login, refresh token, logout, middleware role, layout Velzon (sidebar + navbar) dengan menu dinamis per role, toggle tema
-3. **Master data** — divisi, user, kategori, item, gudang, aturan approval (halaman Pengaturan)
-4. **Purchase Request** — CRUD, submit, cek stok, penomoran otomatis
-5. **Memo & Approval** — generate memo, approval berjenjang, inbox approver, notifikasi, PDF memo
-6. **Vendor** — CRUD, dokumen, rating
-7. **Penawaran & PO** — input penawaran, perbandingan, pilih pemenang, generate PO + PDF, riwayat harga
-8. **Gudang & Aset** — goods receipt (parsial), stok, mutasi, aset, serah terima/pengembalian
-9. **Kontrak** — CRUD, upload dokumen, reminder jatuh tempo
-10. **Anggaran** — input anggaran, realisasi
-11. **Dashboard** — KPI cards (pola StatCard Velzon), grafik, widget per role
-12. **Job terjadwal & email**
-13. **Audit log viewer, export CSV, polish UI, test**
+0. **Penyesuaian kode lama** — proyek sudah punya kode dari rancangan sebelumnya (PR, approval, penawaran, gudang, aset, anggaran). Audit kode yang ada, buat daftar modul/halaman/tabel yang **tidak lagi dipakai** dan yang **bisa dipakai ulang** (auth, layout Velzon, komponen UI), lalu **tanyakan dulu sebelum menghapus**. Jangan menghapus migration lama; buat migration baru.
+1. **Fondasi** — skema Prisma baru (bagian 6), migration, enum di `shared`, `AppSetting`, `MilestoneTemplate`, seed
+2. **Auth & akses** — login, refresh token, jabatan + `isAdmin`, `requirePermission`, cek kepemilikan, menu sidebar per akses
+3. **Master data & Pengaturan** — organisasi, user & permission, vendor, template milestone, ambang
+4. **Pekerjaan** — CRUD, pembentukan milestone dari template, `procurementRules.ts` + unit test, log update, Pekerjaan Saya, detail + `MilestoneTrack`
+5. **Dokumen** — Memo/MoA, RFQ/LoA, PVP + approval, PO + TOP, Agreement + Addendum, sinkronisasi dokumen ↔ milestone, validasi blokir (5.5)
+6. **Import Excel** — template, upload, preview + issue, commit, upsert, rollback
+7. **Dashboard & Monitoring Tim**
+8. **Report** — keenam report + drill-down + export Excel/PDF
+9. **Job terjadwal & notifikasi**
+10. **Riwayat perubahan (audit) di detail, polish UI, test**
 
 Selesaikan & uji satu tahap sebelum lanjut. Setelah tiap tahap, jalankan lint + test dan pastikan aplikasi bisa dijalankan.
 
 ---
 
-## 14. Aturan untuk Claude Code
+## 16. Aturan untuk Claude Code
 
 - Selalu gunakan **TypeScript strict**; hindari `any`.
 - Jangan menambah library baru di luar stack di atas tanpa alasan jelas — sebutkan alasannya jika perlu.
-- Setiap perubahan skema Prisma → buat migration dengan nama deskriptif (`prisma migrate dev --name add_contract_table`).
-- Tulis test untuk logika bisnis penting: penentuan level approval, transisi status, penomoran dokumen, update stok saat GR, perhitungan realisasi anggaran.
-- Ambang approval, reminder days, dan pengaturan lain disimpan di database/konfigurasi — **jangan hardcode**.
+- Setiap perubahan skema Prisma → buat migration dengan nama deskriptif (`prisma migrate dev --name add_work_milestones`).
+- Tulis test untuk logika bisnis penting: `suggestMethod`, `isPvpRequired` (termasuk nilai tepat di ambang dan pengadaan baru tanpa data tahun lalu), prasyarat milestone & cabang paralel, blokir PO tanpa kedua MoA, minimal approval direktur PVP, validasi PK (kontrak aktif & pilihan hasil), konversi mata uang, validasi & upsert import, rollback import, hak ubah staff vs manager.
+- Ambang, jumlah approval, hari pengingat, dan template milestone disimpan di database — **jangan hardcode**.
+- Ingat prinsip bagian 1: **jangan membuat fitur workflow/approval di dalam sistem**. Sistem hanya mencatat hasil proses di luar.
 - Pesan error & validasi untuk user dalam Bahasa Indonesia.
 - Jangan commit file `.env` atau folder `uploads/`.
-- **UI wajib mengikuti bagian 8 → Tema & Desain Visual (Velzon).** Sebelum membuat halaman baru, lihat `docs/design/velzon-reference.png`. Jangan hardcode warna; gunakan token tema DaisyUI.
+- **UI wajib mengikuti bagian 9 → Tema & Desain Visual (Velzon).** Sebelum membuat halaman baru, lihat `docs/design/velzon-reference.png`.
 - Jika ada ambiguitas pada aturan bisnis, tanyakan dulu sebelum mengimplementasikan.
+
+### Hal yang belum diputuskan (tanyakan ke user sebelum mengerjakan bagian terkait)
+- **Format Excel lama** (2015–sekarang): template import di bagian 7 adalah format baru. Pemetaan dari file lama menunggu contoh file dari user.
+- **Kurs mata uang asing**: saat ini kurs diinput per dokumen (`exchangeRate`). Belum diputuskan apakah perlu tabel kurs per tanggal/tahun.
+- **Stok lisensi BAU** (Office 365, Entra ID P1): apakah jumlah seat (total/terpakai) perlu dicatat dan ditampilkan di dashboard.
+- **Nama tim pelaksana LoA** (tim di luar IT): untuk label "Menunggu …" di sistem.
