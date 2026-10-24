@@ -8,14 +8,11 @@ import { getErrorMessage } from '@/api/client';
 import { useAuth } from '@/hooks/useAuth';
 
 const DEMO_ACCOUNTS = [
-  ['superadmin', 'Super Admin'],
-  ['requester', 'Requester'],
-  ['gudang', 'Admin Gudang IT'],
-  ['pengadaan', 'Staf Pengadaan'],
-  ['manajer.it', 'Approver L1 — Manajer IT'],
-  ['keuangan', 'Approver L2 — Keuangan'],
-  ['direksi', 'Approver L3 — Direksi'],
-  ['manajemen', 'Manajemen (Viewer)'],
+  ['admin', 'Admin'],
+  ['hendra.wijaya', 'Manager L2'],
+  ['sari.kusuma', 'Manager L1'],
+  ['andi.pratama', 'Staff'],
+  ['rina.wulandari', 'Staff (akses terbatas)'],
 ] as const;
 
 export function LoginPage() {
@@ -31,7 +28,7 @@ export function LoginPage() {
     formState: { errors },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { identifier: '', password: '' },
   });
 
   const onSubmit = handleSubmit((values) => {
@@ -44,7 +41,7 @@ export function LoginPage() {
   });
 
   const fillDemo = (username: string) => {
-    setValue('email', `${username}@perusahaan.co.id`, { shouldValidate: true });
+    setValue('identifier', username, { shouldValidate: true });
     setValue('password', 'Password123!', { shouldValidate: true });
   };
 
@@ -53,7 +50,9 @@ export function LoginPage() {
       <div className="w-full max-w-md space-y-4">
         <div className="text-center">
           <h1 className="text-primary text-3xl font-bold">{import.meta.env.VITE_APP_NAME}</h1>
-          <p className="text-base-content/70">Sistem Informasi Pengadaan IT & Aset</p>
+          <p className="text-base-content/70">
+            Pencatatan Pengadaan & Monitoring Pekerjaan IT SAPM
+          </p>
         </div>
 
         <div className="card">
@@ -67,16 +66,16 @@ export function LoginPage() {
             )}
 
             <fieldset className="fieldset">
-              <legend className="fieldset-legend">Email</legend>
+              <legend className="fieldset-legend">Username atau email</legend>
               <input
-                type="email"
+                type="text"
                 autoComplete="username"
                 autoFocus
-                className={`input w-full ${errors.email ? 'input-error' : ''}`}
-                placeholder="nama@perusahaan.co.id"
-                {...register('email')}
+                className={`input w-full ${errors.identifier ? 'input-error' : ''}`}
+                placeholder="mis. andi.pratama"
+                {...register('identifier')}
               />
-              {errors.email && <p className="text-error">{errors.email.message}</p>}
+              {errors.identifier && <p className="text-error">{errors.identifier.message}</p>}
             </fieldset>
 
             <fieldset className="fieldset">

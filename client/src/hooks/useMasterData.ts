@@ -1,24 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ResetPasswordInput } from '@sipita/shared';
-import {
-  approvalRulesApi,
-  divisionsApi,
-  itemCategoriesApi,
-  itemsApi,
-  usersApi,
-  warehousesApi,
-} from '@/api/master.api';
+import { departmentsApi, directoratesApi, divisionsApi, usersApi } from '@/api/master.api';
 import { createResourceHooks } from './useResource';
 
 // Related keys: lists that display data from another resource (names, counts).
-export const divisionHooks = createResourceHooks('divisions', divisionsApi, ['users']);
-export const userHooks = createResourceHooks('users', usersApi, ['divisions']);
-export const itemCategoryHooks = createResourceHooks('item-categories', itemCategoriesApi, [
-  'items',
+export const directorateHooks = createResourceHooks('directorates', directoratesApi, ['divisions']);
+export const divisionHooks = createResourceHooks('divisions', divisionsApi, [
+  'directorates',
+  'departments',
 ]);
-export const itemHooks = createResourceHooks('items', itemsApi, ['item-categories']);
-export const warehouseHooks = createResourceHooks('warehouses', warehousesApi);
-export const approvalRuleHooks = createResourceHooks('approval-rules', approvalRulesApi);
+export const departmentHooks = createResourceHooks('departments', departmentsApi, [
+  'divisions',
+  'users',
+]);
+export const userHooks = createResourceHooks('users', usersApi, ['departments']);
 
 export function useResetPassword() {
   const queryClient = useQueryClient();
@@ -29,15 +24,22 @@ export function useResetPassword() {
   });
 }
 
-export function useApprovalRules() {
-  return useQuery({ queryKey: ['approval-rules', 'all'], queryFn: approvalRulesApi.listAll });
+/** Active users for PIC pickers and filters. */
+export function useUserOptions() {
+  return useQuery({ queryKey: ['users', 'options'], queryFn: usersApi.options });
 }
 
 /** Options for <select>s; loads up to 100 records (the API maximum). */
-export function useDivisionOptions() {
-  return divisionHooks.useList({ page: 1, limit: 100, sort: 'name:asc' });
+const ALL = { page: 1, limit: 100, sort: 'code:asc' } as const;
+
+export function useDirectorateOptions() {
+  return directorateHooks.useList(ALL);
 }
 
-export function useCategoryOptions() {
-  return itemCategoryHooks.useList({ page: 1, limit: 100, sort: 'name:asc' });
+export function useDivisionOptions() {
+  return divisionHooks.useList(ALL);
+}
+
+export function useDepartmentOptions() {
+  return departmentHooks.useList(ALL);
 }

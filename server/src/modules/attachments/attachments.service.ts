@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { hasAnyRole, type AttachmentDto, type Role } from '@sipita/shared';
+import type { AttachmentDto } from '@sipita/shared';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { prisma, type TxClient } from '../../lib/prisma.js';
 import { removeFile, saveFile } from '../../lib/storage.js';
@@ -52,12 +52,6 @@ const accessChecks = new Map<string, AccessCheck>();
 export function registerAttachmentAccess(refType: string, check: AccessCheck): void {
   accessChecks.set(refType, check);
 }
-
-/** Convenience check: any of `roles` (SUPER_ADMIN always passes). */
-export const byRoles =
-  (...roles: Role[]): AccessCheck =>
-  (_attachment, actor) =>
-    hasAnyRole(actor.roles, roles);
 
 // ─── Storing ─────────────────────────────────────────────────────────────────
 
@@ -114,10 +108,10 @@ export async function findDownloadable(id: string, actor: Actor): Promise<Attach
   if (!attachment) throw AppError.notFound('File tidak ditemukan');
 
   const check = attachment.refType ? accessChecks.get(attachment.refType) : undefined;
-  // Unowned or unknown types: only the uploader and SUPER_ADMIN.
+  // Unowned or unknown types: only the uploader and admins.
   const allowed = check
     ? await check(attachment, actor)
-    : attachment.uploadedById === actor.userId || actor.roles.includes('SUPER_ADMIN');
+    : attachment.uploadedById === actor.userId || actor.isAdmin;
   if (!allowed) throw AppError.notFound('File tidak ditemukan');
   return attachment;
 }

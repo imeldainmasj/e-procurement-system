@@ -6,7 +6,7 @@ import {
   useNotificationActions,
   useRecentNotifications,
   useUnreadNotificationCount,
-} from '@/hooks/useApprovals';
+} from '@/hooks/useNotifications';
 import { cn } from '@/utils/cn';
 import { formatDateTime } from '@/utils/formatDate';
 

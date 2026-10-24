@@ -1,16 +1,15 @@
 import type { ReactNode } from 'react';
-import type { Role } from '@sipita/shared';
+import type { Feature, PermissionAction } from '@sipita/shared';
 import { usePermission } from '@/hooks/usePermission';
 
-interface CanProps {
-  /** One role or a list; the user needs any of them (SUPER_ADMIN always passes). */
-  role: Role | Role[];
+type CanProps = {
   children: ReactNode;
   fallback?: ReactNode;
-}
+} & ({ feature: Feature; action?: PermissionAction } | { admin: true });
 
-export function Can({ role, children, fallback = null }: CanProps) {
-  const { can } = usePermission();
-  const roles = Array.isArray(role) ? role : [role];
-  return <>{can(...roles) ? children : fallback}</>;
+/** Hides UI the user may not use; the server still enforces every rule. */
+export function Can({ children, fallback = null, ...rule }: CanProps) {
+  const { can, isAdmin } = usePermission();
+  const allowed = 'admin' in rule ? isAdmin : can(rule.feature, rule.action ?? 'view');
+  return <>{allowed ? children : fallback}</>;
 }

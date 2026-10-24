@@ -8,7 +8,7 @@ export const authenticate: RequestHandler = (req, _res, next) => {
   if (!header?.startsWith('Bearer ')) throw AppError.unauthorized();
 
   const payload = verifyAccessToken(header.slice('Bearer '.length));
-  req.user = { id: payload.sub, roles: payload.roles, approvalLevel: payload.approvalLevel };
+  req.user = { id: payload.sub, jobLevel: payload.jobLevel, isAdmin: payload.isAdmin };
   next();
 };
 

@@ -1,117 +1,155 @@
 import type {
-  ApprovalStepStatus,
-  MemoStatus,
-  PoStatus,
-  PriceSourceType,
-  PrPriority,
-  PrStatus,
-  VendorDocumentType,
-  VendorStatus,
+  AgreementStatus,
+  AgreementType,
+  Executor,
+  Feature,
+  ImportStatus,
+  JobLevel,
+  MemoType,
+  MilestoneStatus,
+  MilestoneType,
+  PkResult,
+  PoType,
+  ProcurementMethod,
+  ProcurementType,
+  ProjectCategory,
+  PvpDecision,
+  PvpStatus,
+  WorkStatus,
 } from './enums.js';
 
-export const PR_STATUS_LABELS: Record<PrStatus, string> = {
-  DRAFT: 'Draft',
-  SUBMITTED: 'Diajukan',
-  STOCK_CHECK: 'Cek Stok',
-  FULFILLED_FROM_STOCK: 'Dipenuhi dari Stok',
-  PENDING_APPROVAL: 'Menunggu Approval',
-  APPROVED: 'Disetujui',
-  REJECTED: 'Ditolak',
-  QUOTATION: 'Penawaran',
-  PO_ISSUED: 'PO Terbit',
-  PARTIALLY_RECEIVED: 'Diterima Sebagian',
-  RECEIVED: 'Diterima',
+/** Indonesian UI labels; the import template uses the same labels (CLAUDE.md §7). */
+
+export const JOB_LEVEL_LABELS: Record<JobLevel, string> = {
+  STAFF: 'Staff',
+  MANAGER_L1: 'Manager L1',
+  MANAGER_L2: 'Manager L2',
+};
+
+export const FEATURE_LABELS: Record<Feature, string> = {
+  DASHBOARD: 'Dashboard',
+  WORK: 'Pekerjaan',
+  MONITORING: 'Monitoring Tim',
+  AGREEMENT: 'Kontrak',
+  VENDOR: 'Vendor',
+  REPORT: 'Report',
+  IMPORT: 'Import Excel',
+  SETTINGS: 'Pengaturan',
+};
+
+export const PROCUREMENT_TYPE_LABELS: Record<ProcurementType, string> = {
+  RENEWAL_LICENSE: 'Renewal License',
+  NEW_LICENSE: 'New License',
+  NEW_APPLICATION: 'New Application',
+};
+
+export const PROJECT_CATEGORY_LABELS: Record<ProjectCategory, string> = {
+  BAU: 'BAU',
+  PROJECT: 'Project',
+};
+
+export const PROCUREMENT_METHOD_LABELS: Record<ProcurementMethod, string> = {
+  TENDER: 'Tender',
+  BIDDING: 'Bidding',
+  SPECIAL_EXTENSION: 'Perpanjangan Khusus',
+  DIRECT_APPOINTMENT: 'Penunjukan Langsung',
+};
+
+export const MEMO_TYPE_LABELS: Record<MemoType, string> = {
+  MEMO_PROCUREMENT: 'Memo Pengadaan',
+  MEMO_PL: 'Memo PL',
+  MEMO_PK: 'Memo PK',
+  MOA_TENDER_RESULT: 'MoA Hasil Tender',
+  MOA_PL: 'MoA PL',
+  MOA_PK: 'MoA PK',
+  MOA_COST: 'MoA Biaya',
+};
+
+export const MILESTONE_TYPE_LABELS: Record<MilestoneType, string> = {
+  MEMO: 'Memo',
+  RFQ: 'RFQ',
+  PVP: 'PVP Forum',
+  OFFICIAL_APPROVAL: 'Approval Pejabat',
+  MOA_METHOD: 'MoA Metode',
+  MOA_COST: 'MoA Biaya',
+  LOA: 'LoA',
+  PO: 'PO',
+  AGREEMENT: 'Agreement',
+  AGREEMENT_OR_ADDENDUM: 'Addendum / Agreement Baru',
+};
+
+/** Method-specific names for the milestones whose label depends on the method (CLAUDE.md §5.4). */
+export function milestoneLabel(type: MilestoneType, method: ProcurementMethod): string {
+  if (type === 'MEMO') {
+    if (method === 'DIRECT_APPOINTMENT') return 'Memo PL';
+    if (method === 'SPECIAL_EXTENSION') return 'Memo PK';
+  }
+  if (type === 'MOA_METHOD') {
+    if (method === 'DIRECT_APPOINTMENT') return 'MoA PL';
+    if (method === 'SPECIAL_EXTENSION') return 'MoA PK';
+    return 'MoA Hasil Tender';
+  }
+  if (type === 'AGREEMENT' && method !== 'TENDER' && method !== 'BIDDING') return 'Agreement Baru';
+  return MILESTONE_TYPE_LABELS[type];
+}
+
+export const EXECUTOR_LABELS: Record<Executor, string> = {
+  IT: 'IT',
+  OTHER_TEAM: 'Tim di luar IT',
+  DIRECTORS: 'Direksi',
+  OFFICIAL: 'Pejabat',
+};
+
+export const MILESTONE_STATUS_LABELS: Record<MilestoneStatus, string> = {
+  NOT_STARTED: 'Belum Mulai',
+  IN_PROGRESS: 'Berjalan',
+  DONE: 'Selesai',
+  NOT_APPLICABLE: 'Tidak Berlaku',
+};
+
+export const WORK_STATUS_LABELS: Record<WorkStatus, string> = {
+  ACTIVE: 'Aktif',
+  ON_HOLD: 'Ditunda',
   COMPLETED: 'Selesai',
   CANCELLED: 'Dibatalkan',
 };
 
-export const PR_PRIORITY_LABELS: Record<PrPriority, string> = {
-  LOW: 'Rendah',
-  MEDIUM: 'Sedang',
-  HIGH: 'Tinggi',
-  URGENT: 'Mendesak',
+export const PK_RESULT_LABELS: Record<PkResult, string> = {
+  ADDENDUM: 'Addendum',
+  NEW_AGREEMENT: 'Agreement Baru',
 };
 
-/**
- * Allowed PR status transitions (CLAUDE.md §5). DRAFT is deleted rather than cancelled,
- * since a draft has no document number yet. PO_ISSUED → QUOTATION happens when an issued
- * PO is cancelled before any goods arrive, so procurement can pick another quotation.
- */
-export const PR_TRANSITIONS: Record<PrStatus, readonly PrStatus[]> = {
-  DRAFT: ['SUBMITTED'],
-  SUBMITTED: ['STOCK_CHECK', 'CANCELLED'],
-  STOCK_CHECK: ['FULFILLED_FROM_STOCK', 'PENDING_APPROVAL', 'CANCELLED'],
-  PENDING_APPROVAL: ['APPROVED', 'REJECTED', 'CANCELLED'],
-  APPROVED: ['QUOTATION', 'CANCELLED'],
-  QUOTATION: ['PO_ISSUED', 'CANCELLED'],
-  PO_ISSUED: ['PARTIALLY_RECEIVED', 'RECEIVED', 'QUOTATION'],
-  PARTIALLY_RECEIVED: ['RECEIVED'],
-  RECEIVED: ['COMPLETED'],
-  FULFILLED_FROM_STOCK: [],
-  REJECTED: [],
-  COMPLETED: [],
-  CANCELLED: [],
-};
-
-export function canTransition<S extends string>(
-  transitions: Record<S, readonly S[]>,
-  from: S,
-  to: S,
-): boolean {
-  return transitions[from].includes(to);
-}
-
-export const MEMO_STATUS_LABELS: Record<MemoStatus, string> = {
-  DRAFT: 'Draft',
-  PENDING: 'Menunggu Approval',
+export const PVP_STATUS_LABELS: Record<PvpStatus, string> = {
+  PENDING: 'Menunggu',
   APPROVED: 'Disetujui',
   REJECTED: 'Ditolak',
-  CANCELLED: 'Dibatalkan',
 };
 
-export const APPROVAL_STEP_STATUS_LABELS: Record<ApprovalStepStatus, string> = {
-  WAITING: 'Menunggu Giliran',
-  PENDING: 'Menunggu Keputusan',
+export const PVP_DECISION_LABELS: Record<PvpDecision, string> = {
   APPROVED: 'Disetujui',
   REJECTED: 'Ditolak',
-  SKIPPED: 'Dilewati',
 };
 
-export const VENDOR_STATUS_LABELS: Record<VendorStatus, string> = {
+export const PO_TYPE_LABELS: Record<PoType, string> = {
+  NEW: 'New',
+  RENEWAL: 'Renewal',
+};
+
+export const AGREEMENT_TYPE_LABELS: Record<AgreementType, string> = {
+  NEW: 'New',
+  RENEWAL: 'Renewal',
+};
+
+export const AGREEMENT_STATUS_LABELS: Record<AgreementStatus, string> = {
   ACTIVE: 'Aktif',
-  UNDER_REVIEW: 'Dalam Review',
-  BLACKLISTED: 'Blacklist',
-  INACTIVE: 'Nonaktif',
+  EXPIRING_SOON: 'Segera Berakhir',
+  EXPIRED: 'Berakhir',
+  TERMINATED: 'Diakhiri',
 };
 
-export const VENDOR_DOCUMENT_TYPE_LABELS: Record<VendorDocumentType, string> = {
-  SIUP: 'SIUP',
-  NIB: 'NIB',
-  NPWP: 'NPWP',
-  AKTA: 'Akta Perusahaan',
-  LAINNYA: 'Lainnya',
-};
-
-export const PO_STATUS_LABELS: Record<PoStatus, string> = {
-  DRAFT: 'Draft',
-  ISSUED: 'Terbit',
-  PARTIALLY_RECEIVED: 'Diterima Sebagian',
-  RECEIVED: 'Diterima',
-  CLOSED: 'Ditutup',
-  CANCELLED: 'Dibatalkan',
-};
-
-/** Only DRAFT and ISSUED (nothing received yet) POs can be cancelled. */
-export const PO_TRANSITIONS: Record<PoStatus, readonly PoStatus[]> = {
-  DRAFT: ['ISSUED', 'CANCELLED'],
-  ISSUED: ['PARTIALLY_RECEIVED', 'RECEIVED', 'CANCELLED'],
-  PARTIALLY_RECEIVED: ['RECEIVED', 'CLOSED'],
-  RECEIVED: ['CLOSED'],
-  CLOSED: [],
-  CANCELLED: [],
-};
-
-export const PRICE_SOURCE_TYPE_LABELS: Record<PriceSourceType, string> = {
-  QUOTATION: 'Penawaran',
-  PO: 'Purchase Order',
+export const IMPORT_STATUS_LABELS: Record<ImportStatus, string> = {
+  PREVIEW: 'Pratinjau',
+  COMMITTED: 'Tersimpan',
+  ROLLED_BACK: 'Dibatalkan',
+  FAILED: 'Gagal',
 };

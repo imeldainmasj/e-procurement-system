@@ -15,8 +15,8 @@ function getRefreshCookie(res: request.Response): string {
   return cookie.split(';')[0]!;
 }
 
-async function login(email: string, password = TEST_PASSWORD) {
-  return request(app).post('/api/v1/auth/login').send({ email, password });
+async function login(identifier: string, password = TEST_PASSWORD) {
+  return request(app).post('/api/v1/auth/login').send({ identifier, password });
 }
 
 beforeEach(resetDatabase);
@@ -24,14 +24,24 @@ afterAll(() => prisma.$disconnect());
 
 describe('POST /auth/login', () => {
   it('returns an access token, the user, and an httpOnly refresh cookie', async () => {
-    await createTestUser({ email: 'rina@test.local', roles: ['REQUESTER', 'WAREHOUSE'] });
+    await createTestUser({
+      email: 'rina@test.local',
+      jobLevel: 'MANAGER_L1',
+      permissions: { IMPORT: { create: false } },
+    });
 
     const res = await login('RINA@test.local ');
 
     expect(res.status).toBe(200);
     expect(res.body.data.accessToken).toEqual(expect.any(String));
     expect(res.body.data.user).toMatchObject({ email: 'rina@test.local' });
-    expect(res.body.data.user.roles.sort()).toEqual(['REQUESTER', 'WAREHOUSE']);
+    expect(res.body.data.user).toMatchObject({ jobLevel: 'MANAGER_L1', isAdmin: false });
+    expect(res.body.data.user.permissions.IMPORT).toEqual({
+      view: true,
+      create: false,
+      update: true,
+      delete: true,
+    });
     expect(JSON.stringify(res.body)).not.toContain('passwordHash');
 
     const setCookie = ([] as string[]).concat(res.headers['set-cookie'] ?? []).join(';');
@@ -40,7 +50,14 @@ describe('POST /auth/login', () => {
     expect(setCookie).toContain('Path=/api/v1/auth');
   });
 
-  it('rejects a wrong password and an unknown email with the same message', async () => {
+  it('accepts the username as well as the email', async () => {
+    await createTestUser({ username: 'andi.pratama', email: 'andi@test.local' });
+    const res = await login('Andi.Pratama');
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.email).toBe('andi@test.local');
+  });
+
+  it('rejects a wrong password and an unknown user with the same message', async () => {
     await createTestUser({ email: 'rina@test.local' });
 
     const wrong = await login('rina@test.local', 'salah');
@@ -60,7 +77,7 @@ describe('POST /auth/login', () => {
   });
 
   it('validates the payload', async () => {
-    const res = await request(app).post('/api/v1/auth/login').send({ email: 'bukan-email' });
+    const res = await request(app).post('/api/v1/auth/login').send({ identifier: '' });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
@@ -68,7 +85,7 @@ describe('POST /auth/login', () => {
 
 describe('GET /auth/me', () => {
   it('returns the current user with a valid token', async () => {
-    await createTestUser({ email: 'me@test.local', roles: ['APPROVER'], approvalLevel: 2 });
+    await createTestUser({ email: 'me@test.local', jobLevel: 'MANAGER_L2', isAdmin: true });
     const { body } = await login('me@test.local');
 
     const res = await request(app)
@@ -78,8 +95,8 @@ describe('GET /auth/me', () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toMatchObject({
       email: 'me@test.local',
-      roles: ['APPROVER'],
-      approvalLevel: 2,
+      jobLevel: 'MANAGER_L2',
+      isAdmin: true,
     });
   });
 

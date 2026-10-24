@@ -1,16 +1,19 @@
-import type {
-  ResetPasswordInput,
-  Role,
-  UserCreatePayload,
-  UserDto,
-  UserUpdatePayload,
-  userListQuerySchema,
+import {
+  FEATURES,
+  toPermissionMap,
+  type PermissionMap,
+  type ResetPasswordInput,
+  type UserCreatePayload,
+  type UserDto,
+  type UserOptionDto,
+  type UserUpdatePayload,
+  type userListQuerySchema,
 } from '@sipita/shared';
 import type { z } from 'zod';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { writeAuditLog } from '../../lib/audit.js';
 import { hashPassword } from '../../lib/password.js';
-import { prisma } from '../../lib/prisma.js';
+import { prisma, type TxClient } from '../../lib/prisma.js';
 import type { Actor } from '../../utils/actor.js';
 import { AppError } from '../../utils/AppError.js';
 import { iso } from '../../utils/dto.js';
@@ -22,17 +25,20 @@ const ENTITY = 'User';
 
 const userSelect = {
   id: true,
+  employeeId: true,
+  username: true,
   name: true,
   email: true,
-  nip: true,
-  phone: true,
-  approvalLevel: true,
+  jobLevel: true,
+  isAdmin: true,
   isActive: true,
   lastLoginAt: true,
   createdAt: true,
   updatedAt: true,
-  division: { select: { id: true, code: true, name: true } },
-  roles: { select: { role: { select: { code: true } } } },
+  department: { select: { id: true, code: true, name: true } },
+  permissions: {
+    select: { feature: true, canView: true, canCreate: true, canUpdate: true, canDelete: true },
+  },
 } satisfies Prisma.UserSelect;
 
 type UserRecord = Prisma.UserGetPayload<{ select: typeof userSelect }>;
@@ -40,15 +46,16 @@ type UserRecord = Prisma.UserGetPayload<{ select: typeof userSelect }>;
 function toDto(u: UserRecord): UserDto {
   return {
     id: u.id,
+    employeeId: u.employeeId,
+    username: u.username,
     name: u.name,
     email: u.email,
-    nip: u.nip,
-    phone: u.phone,
-    approvalLevel: u.approvalLevel,
+    jobLevel: u.jobLevel,
+    isAdmin: u.isAdmin,
     isActive: u.isActive,
     lastLoginAt: iso(u.lastLoginAt),
-    division: u.division,
-    roles: u.roles.map((r) => r.role.code),
+    department: u.department,
+    permissions: toPermissionMap(u.permissions),
     createdAt: iso(u.createdAt),
     updatedAt: iso(u.updatedAt),
   };
@@ -57,9 +64,9 @@ function toDto(u: UserRecord): UserDto {
 export async function list(q: ListQuery) {
   const where: Prisma.UserWhereInput = {
     deletedAt: null,
-    ...searchFilter(q.search, ['name', 'email', 'nip']),
-    ...(q.role && { roles: { some: { role: { code: q.role } } } }),
-    ...(q.divisionId && { divisionId: q.divisionId }),
+    ...searchFilter(q.search, ['name', 'email', 'username', 'employeeId']),
+    ...(q.jobLevel && { jobLevel: q.jobLevel }),
+    ...(q.departmentId && { departmentId: q.departmentId }),
     ...(q.isActive !== undefined && { isActive: q.isActive }),
   };
   const [rows, total] = await prisma.$transaction([
@@ -68,7 +75,7 @@ export async function list(q: ListQuery) {
       select: userSelect,
       orderBy: buildOrderBy<Prisma.UserOrderByWithRelationInput>(
         q.sort,
-        ['name', 'email', 'nip', 'createdAt', 'lastLoginAt', 'division.name'],
+        ['name', 'username', 'email', 'employeeId', 'jobLevel', 'createdAt', 'lastLoginAt'],
         { name: 'asc' },
       ),
       ...pageArgs(q),
@@ -76,6 +83,15 @@ export async function list(q: ListQuery) {
     prisma.user.count({ where }),
   ]);
   return { data: rows.map(toDto), meta: pageMeta(q, total) };
+}
+
+/** Active users for pickers (PIC, filters); readable by every signed-in user. */
+export async function options(): Promise<UserOptionDto[]> {
+  return prisma.user.findMany({
+    where: { deletedAt: null, isActive: true },
+    select: { id: true, name: true, username: true, jobLevel: true },
+    orderBy: { name: 'asc' },
+  });
 }
 
 async function findOrThrow(id: string): Promise<UserRecord> {
@@ -91,33 +107,53 @@ export async function get(id: string): Promise<UserDto> {
 async function assertValid(input: UserUpdatePayload, currentId?: string): Promise<void> {
   const notCurrent = currentId ? { NOT: { id: currentId } } : {};
 
-  // Soft-deleted users keep their email/NIP, so the check covers them too.
-  if (await prisma.user.findFirst({ where: { email: input.email, ...notCurrent } })) {
-    throw AppError.conflict(`Email ${input.email} sudah digunakan`);
+  // Soft-deleted users keep their identifiers, so the checks cover them too.
+  const unique: [keyof Prisma.UserWhereInput, string, string][] = [
+    ['email', input.email, 'Email'],
+    ['username', input.username, 'Username'],
+    ['employeeId', input.employeeId, 'NIK karyawan'],
+  ];
+  for (const [field, value, label] of unique) {
+    if (await prisma.user.findFirst({ where: { [field]: value, ...notCurrent } })) {
+      throw AppError.conflict(`${label} ${value} sudah digunakan`);
+    }
   }
-  if (input.nip && (await prisma.user.findFirst({ where: { nip: input.nip, ...notCurrent } }))) {
-    throw AppError.conflict(`NIP ${input.nip} sudah digunakan`);
-  }
-  if (input.divisionId) {
-    const division = await prisma.division.findFirst({
-      where: { id: input.divisionId, deletedAt: null },
+  if (input.departmentId) {
+    const department = await prisma.department.findFirst({
+      where: { id: input.departmentId, deletedAt: null },
     });
-    if (!division) throw AppError.badRequest('Divisi tidak ditemukan');
+    if (!department) throw AppError.badRequest('Departemen tidak ditemukan');
   }
 }
 
-const roleLinks = (roles: Role[]) => roles.map((code) => ({ role: { connect: { code } } }));
-
 function userData(input: UserUpdatePayload) {
   return {
+    employeeId: input.employeeId,
+    username: input.username,
     name: input.name,
     email: input.email,
-    nip: input.nip,
-    phone: input.phone,
-    divisionId: input.divisionId,
-    approvalLevel: input.approvalLevel,
+    jobLevel: input.jobLevel,
+    departmentId: input.departmentId,
+    isAdmin: input.isAdmin,
     isActive: input.isActive,
   };
+}
+
+async function savePermissions(tx: TxClient, userId: string, map: PermissionMap): Promise<void> {
+  for (const feature of FEATURES) {
+    const flags = map[feature];
+    const data = {
+      canView: flags.view,
+      canCreate: flags.create,
+      canUpdate: flags.update,
+      canDelete: flags.delete,
+    };
+    await tx.userPermission.upsert({
+      where: { userId_feature: { userId, feature } },
+      update: data,
+      create: { userId, feature, ...data },
+    });
+  }
 }
 
 export async function create(input: UserCreatePayload, actor: Actor): Promise<UserDto> {
@@ -125,15 +161,14 @@ export async function create(input: UserCreatePayload, actor: Actor): Promise<Us
   const passwordHash = await hashPassword(input.password);
 
   const user = await prisma.$transaction(async (tx) => {
-    const created = await tx.user.create({
-      data: { ...userData(input), passwordHash, roles: { create: roleLinks(input.roles) } },
-      select: userSelect,
-    });
+    const { id } = await tx.user.create({ data: { ...userData(input), passwordHash } });
+    await savePermissions(tx, id, input.permissions);
+    const created = await tx.user.findUniqueOrThrow({ where: { id }, select: userSelect });
     await writeAuditLog(tx, {
       actor,
       action: 'CREATE',
       entity: ENTITY,
-      entityId: created.id,
+      entityId: id,
       after: toDto(created),
     });
     return created;
@@ -147,21 +182,17 @@ export async function update(id: string, input: UserUpdatePayload, actor: Actor)
 
   if (id === actor.userId) {
     if (!input.isActive) throw AppError.badRequest('Anda tidak dapat menonaktifkan akun sendiri');
-    if (
-      before.roles.some((r) => r.role.code === 'SUPER_ADMIN') &&
-      !input.roles.includes('SUPER_ADMIN')
-    ) {
-      throw AppError.badRequest('Anda tidak dapat menghapus role Super Admin dari akun sendiri');
+    if (before.isAdmin && !input.isAdmin) {
+      throw AppError.badRequest('Anda tidak dapat mencabut hak admin dari akun sendiri');
     }
   }
 
   const user = await prisma.$transaction(async (tx) => {
-    const updated = await tx.user.update({
-      where: { id },
-      data: { ...userData(input), roles: { deleteMany: {}, create: roleLinks(input.roles) } },
-      select: userSelect,
-    });
-    // Deactivation ends all sessions immediately; role changes apply on the next token refresh.
+    await tx.user.update({ where: { id }, data: userData(input) });
+    await savePermissions(tx, id, input.permissions);
+    const updated = await tx.user.findUniqueOrThrow({ where: { id }, select: userSelect });
+    // Deactivation ends all sessions immediately; permission changes apply on the next
+    // request, job level and admin changes on the next token refresh.
     if (before.isActive && !input.isActive) {
       await tx.refreshToken.updateMany({
         where: { userId: id, revokedAt: null },
@@ -203,7 +234,6 @@ export async function remove(id: string, actor: Actor): Promise<void> {
   const user = await findOrThrow(id);
   await prisma.$transaction(async (tx) => {
     await tx.user.update({ where: { id }, data: { deletedAt: new Date(), isActive: false } });
-    await tx.division.updateMany({ where: { headUserId: id }, data: { headUserId: null } });
     await tx.refreshToken.updateMany({
       where: { userId: id, revokedAt: null },
       data: { revokedAt: new Date() },

@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import '../zod.js';
-import { approvalRuleInputSchema } from './approval-rule.schema.js';
+import { FULL_PERMISSION, toPermissionMap } from '../access.js';
 import { codeSchema, optionalText } from './common.schema.js';
-import { userCreateSchema, userUpdateSchema } from './user.schema.js';
+import { settingsInputSchema, SETTING_DEFAULTS } from './setting.schema.js';
+import { userCreateSchema } from './user.schema.js';
 
 describe('codeSchema', () => {
   it('uppercases and trims', () => {
-    expect(codeSchema.parse('  lpt-01 ')).toBe('LPT-01');
+    expect(codeSchema.parse('  dir-ops ')).toBe('DIR-OPS');
   });
   it('rejects spaces and symbols', () => {
-    expect(codeSchema.safeParse('LPT 01').success).toBe(false);
+    expect(codeSchema.safeParse('DIR OPS').success).toBe(false);
   });
 });
 
@@ -20,56 +21,57 @@ describe('optionalText', () => {
   });
 });
 
-describe('user schemas', () => {
+describe('userCreateSchema', () => {
+  const permissions = Object.fromEntries(
+    Object.keys(toPermissionMap([])).map((f) => [f, FULL_PERMISSION]),
+  );
   const base = {
+    employeeId: '19870001',
+    username: 'Andi.Pratama',
     name: 'Andi',
     email: 'ANDI@Perusahaan.co.id',
-    roles: ['APPROVER'],
+    jobLevel: 'STAFF',
     password: 'rahasia123',
+    permissions,
   };
 
-  it('requires approvalLevel for APPROVER', () => {
-    const res = userCreateSchema.safeParse(base);
-    expect(res.success).toBe(false);
-    expect(res.error?.issues[0]?.path).toEqual(['approvalLevel']);
+  it('normalizes username and email', () => {
+    const res = userCreateSchema.parse(base);
+    expect(res.username).toBe('andi.pratama');
+    expect(res.email).toBe('andi@perusahaan.co.id');
+    expect(res.isAdmin).toBe(false);
   });
 
-  it('drops approvalLevel for non-approvers and normalizes email', () => {
-    const res = userUpdateSchema.parse({ ...base, roles: ['REQUESTER'], approvalLevel: 2 });
-    expect(res.approvalLevel).toBeNull();
-    expect(res.email).toBe('andi@perusahaan.co.id');
+  it('rejects usernames with spaces', () => {
+    expect(userCreateSchema.safeParse({ ...base, username: 'andi pratama' }).success).toBe(false);
   });
 
   it('enforces password strength', () => {
-    expect(
-      userCreateSchema.safeParse({ ...base, approvalLevel: 1, password: 'abcdefgh' }).success,
-    ).toBe(false);
-    expect(userCreateSchema.safeParse({ ...base, approvalLevel: 1 }).success).toBe(true);
+    expect(userCreateSchema.safeParse({ ...base, password: 'abcdefgh' }).success).toBe(false);
+  });
+
+  it('requires a flag set for every feature', () => {
+    const { WORK: _work, ...partial } = permissions;
+    expect(userCreateSchema.safeParse({ ...base, permissions: partial }).success).toBe(false);
   });
 });
 
-describe('approvalRuleInputSchema', () => {
-  const rule = { name: 'R', minAmount: 0, maxAmount: 10_000_000, levels: [1] };
+describe('settingsInputSchema', () => {
+  it('accepts the defaults', () => {
+    expect(settingsInputSchema.parse(SETTING_DEFAULTS)).toEqual(SETTING_DEFAULTS);
+  });
 
-  it('applies bound defaults', () => {
-    expect(approvalRuleInputSchema.parse(rule)).toMatchObject({
-      minInclusive: true,
-      maxInclusive: false,
+  it('dedupes and sorts reminder days descending', () => {
+    const res = settingsInputSchema.parse({
+      ...SETTING_DEFAULTS,
+      CONTRACT_REMINDER_DAYS: [30, 90, 30],
     });
+    expect(res.CONTRACT_REMINDER_DAYS).toEqual([90, 30]);
   });
 
-  it('requires ascending unique levels', () => {
-    expect(approvalRuleInputSchema.safeParse({ ...rule, levels: [2, 1] }).success).toBe(false);
-    expect(approvalRuleInputSchema.safeParse({ ...rule, levels: [1, 1] }).success).toBe(false);
-  });
-
-  it('requires max above min', () => {
-    expect(approvalRuleInputSchema.safeParse({ ...rule, maxAmount: 0 }).success).toBe(false);
-  });
-
-  it('clears maxInclusive when unbounded', () => {
+  it('requires at least one director approval', () => {
     expect(
-      approvalRuleInputSchema.parse({ ...rule, maxAmount: null, maxInclusive: true }).maxInclusive,
+      settingsInputSchema.safeParse({ ...SETTING_DEFAULTS, PVP_MIN_DIRECTOR_APPROVALS: 0 }).success,
     ).toBe(false);
   });
 });

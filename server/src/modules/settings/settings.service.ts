@@ -1,5 +1,6 @@
 import {
   SETTING_DEFAULTS,
+  SETTING_DESCRIPTIONS,
   SETTING_KEYS,
   settingsInputSchema,
   type SettingsDto,
@@ -28,7 +29,7 @@ export async function updateSettings(input: SettingsDto, actor: Actor): Promise<
       await tx.appSetting.upsert({
         where: { key },
         update: { value, updatedById: actor.userId },
-        create: { key, value, updatedById: actor.userId },
+        create: { key, value, description: SETTING_DESCRIPTIONS[key], updatedById: actor.userId },
       });
     }
     await writeAuditLog(tx, {

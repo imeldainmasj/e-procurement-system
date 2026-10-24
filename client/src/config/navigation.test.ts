@@ -1,31 +1,51 @@
 import { describe, expect, it } from 'vitest';
+import { FEATURES, toPermissionMap, type AccessSubject } from '@sipita/shared';
 import { getVisibleNav } from './navigation';
 
-const paths = (roles: Parameters<typeof getVisibleNav>[0]) =>
-  getVisibleNav(roles).flatMap((s) => s.items.map((i) => i.path));
+const full = toPermissionMap(
+  FEATURES.map((feature) => ({
+    feature,
+    canView: true,
+    canCreate: true,
+    canUpdate: true,
+    canDelete: true,
+  })),
+);
+
+const subject = (over: Partial<AccessSubject> = {}): AccessSubject => ({
+  jobLevel: 'STAFF',
+  isAdmin: false,
+  permissions: full,
+  ...over,
+});
+
+const paths = (s: AccessSubject) => getVisibleNav(s).flatMap((x) => x.items.map((i) => i.path));
 
 describe('getVisibleNav', () => {
-  it('shows a requester only the common pages', () => {
-    expect(paths(['REQUESTER'])).toEqual(['/', '/pengajuan']);
+  it('hides Monitoring Tim and Pengaturan from staff', () => {
+    const result = paths(subject());
+    expect(result).toContain('/pekerjaan/saya');
+    expect(result).toContain('/report/kepatuhan');
+    expect(result).not.toContain('/monitoring');
+    expect(result.some((p) => p.startsWith('/pengaturan'))).toBe(false);
   });
 
-  it('combines menus for users with several roles', () => {
-    const result = paths(['WAREHOUSE', 'REQUESTER']);
-    expect(result).toContain('/gudang/stok');
-    expect(result).toContain('/aset');
-    expect(result).not.toContain('/vendor');
+  it('shows Monitoring Tim to managers', () => {
+    expect(paths(subject({ jobLevel: 'MANAGER_L1' }))).toContain('/monitoring');
   });
 
-  it('gives the viewer read-only reports', () => {
-    expect(paths(['VIEWER'])).toEqual(['/', '/pengajuan', '/harga', '/anggaran']);
+  it('follows the per-feature view permission', () => {
+    const noImport = { ...full, IMPORT: { ...full.IMPORT, view: false } };
+    expect(paths(subject({ permissions: noImport }))).not.toContain('/import');
   });
 
-  it('shows everything to SUPER_ADMIN', () => {
-    expect(paths(['SUPER_ADMIN'])).toContain('/pengaturan/aturan-approval');
-    expect(getVisibleNav(['SUPER_ADMIN'])).toHaveLength(5);
-  });
-
-  it('drops empty sections', () => {
-    expect(getVisibleNav(['APPROVER']).map((s) => s.title)).toEqual(['Menu', 'Pengadaan']);
+  it('shows everything to admins and drops empty sections otherwise', () => {
+    expect(getVisibleNav(subject({ isAdmin: true }))).toHaveLength(4);
+    const onlyDashboard = toPermissionMap([
+      { feature: 'DASHBOARD', canView: true, canCreate: false, canUpdate: false, canDelete: false },
+    ]);
+    expect(getVisibleNav(subject({ permissions: onlyDashboard })).map((s) => s.title)).toEqual([
+      'Menu',
+    ]);
   });
 });

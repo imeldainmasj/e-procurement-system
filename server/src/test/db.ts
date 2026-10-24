@@ -1,4 +1,4 @@
-import { ROLES, type Role } from '@sipita/shared';
+import { FEATURES, type Feature, type JobLevel, type PermissionFlags } from '@sipita/shared';
 import { signAccessToken } from '../lib/jwt.js';
 import { hashPassword } from '../lib/password.js';
 import { prisma } from '../lib/prisma.js';
@@ -17,85 +17,56 @@ export const TEST_PASSWORD = 'Password123!';
 let cachedHash: string | undefined;
 
 interface CreateUserOptions {
+  username?: string;
   email?: string;
   name?: string;
-  roles?: Role[];
-  approvalLevel?: number | null;
+  jobLevel?: JobLevel;
+  isAdmin?: boolean;
   isActive?: boolean;
-  divisionId?: string | null;
+  departmentId?: string | null;
+  /** Per-feature overrides; every other feature gets full access. */
+  permissions?: Partial<Record<Feature, Partial<PermissionFlags>>>;
 }
 
 export async function createTestUser(options: CreateUserOptions = {}) {
   cachedHash ??= await hashPassword(TEST_PASSWORD);
-  const roles = options.roles ?? ['REQUESTER'];
+  const key = crypto.randomUUID().slice(0, 8);
 
   return prisma.user.create({
     data: {
+      employeeId: `EMP-${key}`,
+      username: options.username ?? `user.${key}`,
       name: options.name ?? 'Test User',
-      email: options.email ?? `user-${crypto.randomUUID()}@test.local`,
+      email: options.email ?? `user-${key}@test.local`,
       passwordHash: cachedHash,
-      approvalLevel: options.approvalLevel ?? null,
+      jobLevel: options.jobLevel ?? 'STAFF',
+      isAdmin: options.isAdmin ?? false,
       isActive: options.isActive ?? true,
-      divisionId: options.divisionId ?? null,
-      roles: {
-        create: roles.map((code) => ({
-          role: { connectOrCreate: { where: { code }, create: { code, name: code } } },
-        })),
+      departmentId: options.departmentId ?? null,
+      permissions: {
+        create: FEATURES.map((feature) => {
+          const o = options.permissions?.[feature] ?? {};
+          return {
+            feature,
+            canView: o.view ?? true,
+            canCreate: o.create ?? true,
+            canUpdate: o.update ?? true,
+            canDelete: o.delete ?? true,
+          };
+        }),
       },
     },
   });
 }
 
 /** Authorization header for a user, signed directly (no login round-trip). */
-export function authHeader(user: { id: string; approvalLevel?: number | null }, roles: Role[]) {
-  const token = signAccessToken({ sub: user.id, roles, approvalLevel: user.approvalLevel ?? null });
+export function authHeader(user: { id: string; jobLevel: JobLevel; isAdmin: boolean }) {
+  const token = signAccessToken({ sub: user.id, jobLevel: user.jobLevel, isAdmin: user.isAdmin });
   return { Authorization: `Bearer ${token}` };
 }
 
 /** Admin user plus its Authorization header. */
 export async function createAdmin() {
-  const admin = await createTestUser({
-    email: `admin-${crypto.randomUUID()}@test.local`,
-    roles: ['SUPER_ADMIN'],
-  });
-  return { admin, headers: authHeader(admin, ['SUPER_ADMIN']) };
-}
-
-/** Make sure every role row exists (services connect roles by code). */
-export async function ensureRoles(): Promise<void> {
-  for (const code of ROLES) {
-    await prisma.role.upsert({ where: { code }, update: {}, create: { code, name: code } });
-  }
-}
-
-/** The default approval tiers from CLAUDE.md §5. */
-export async function seedDefaultApprovalRules(): Promise<void> {
-  await prisma.approvalRule.createMany({
-    data: [
-      {
-        name: '< 10jt',
-        minAmount: 0,
-        minInclusive: true,
-        maxAmount: 10_000_000,
-        maxInclusive: false,
-        levels: [1],
-      },
-      {
-        name: '10–50jt',
-        minAmount: 10_000_000,
-        minInclusive: true,
-        maxAmount: 50_000_000,
-        maxInclusive: true,
-        levels: [1, 2],
-      },
-      {
-        name: '> 50jt',
-        minAmount: 50_000_000,
-        minInclusive: false,
-        maxAmount: null,
-        maxInclusive: false,
-        levels: [1, 2, 3],
-      },
-    ],
-  });
+  const admin = await createTestUser({ isAdmin: true });
+  return { admin, headers: authHeader(admin) };
 }

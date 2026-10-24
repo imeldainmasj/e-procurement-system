@@ -57,3 +57,5 @@ export function createResourceHooks<TDto, TInput>(
     },
   };
 }
+
+export type ResourceHooks<TDto, TInput> = ReturnType<typeof createResourceHooks<TDto, TInput>>;

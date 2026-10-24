@@ -1,7 +1,7 @@
-import { LogOut, Menu, Moon, Search, Sun } from 'lucide-react';
+import { LogOut, Menu, Moon, Search, ShieldCheck, Sun } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { APPROVAL_LEVEL_LABELS, ROLE_LABELS } from '@sipita/shared';
+import { JOB_LEVEL_LABELS } from '@sipita/shared';
 import { getVisibleNav } from '@/config/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermission } from '@/hooks/usePermission';
@@ -19,9 +19,9 @@ function initials(name: string): string {
 /** Quick jump to any menu page the user can open. */
 function MenuSearch() {
   const navigate = useNavigate();
-  const { roles } = usePermission();
+  const { subject } = usePermission();
   const [query, setQuery] = useState('');
-  const items = getVisibleNav(roles).flatMap((s) => s.items);
+  const items = getVisibleNav(subject).flatMap((s) => s.items);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -65,8 +65,6 @@ export function Navbar() {
     navigate('/login', { replace: true });
   };
 
-  const primaryRole = user?.roles[0];
-
   return (
     <header className="navbar bg-base-100 border-base-300 sticky top-0 z-10 min-h-16 gap-3 border-b px-4 py-0">
       <label
@@ -104,27 +102,26 @@ export function Navbar() {
             </div>
             <div className="hidden text-left leading-tight sm:block">
               <div className="text-sm font-semibold">{user.name}</div>
-              {primaryRole && (
-                <div className="text-base-content/60 text-xs">{ROLE_LABELS[primaryRole]}</div>
-              )}
+              <div className="text-base-content/60 text-xs">{JOB_LEVEL_LABELS[user.jobLevel]}</div>
             </div>
           </button>
           <div className="dropdown-content bg-base-100 rounded-box border-base-300 z-20 w-64 border p-2 shadow-lg">
             <div className="px-3 py-2">
               <p className="font-semibold">{user.name}</p>
               <p className="text-base-content/60 truncate text-sm">{user.email}</p>
-              {user.division && (
-                <p className="text-base-content/60 text-sm">{user.division.name}</p>
+              {user.department && (
+                <p className="text-base-content/60 text-sm">{user.department.name}</p>
               )}
               <div className="mt-2 flex flex-wrap gap-1">
-                {user.roles.map((role) => (
-                  <span key={role} className="badge badge-sm badge-soft badge-primary">
-                    {ROLE_LABELS[role]}
-                    {role === 'APPROVER' && user.approvalLevel
-                      ? ` · ${APPROVAL_LEVEL_LABELS[user.approvalLevel] ?? `L${user.approvalLevel}`}`
-                      : ''}
+                <span className="badge badge-sm badge-soft badge-primary">
+                  {JOB_LEVEL_LABELS[user.jobLevel]}
+                </span>
+                {user.isAdmin && (
+                  <span className="badge badge-sm badge-soft badge-secondary">
+                    <ShieldCheck className="size-3" />
+                    Admin
                   </span>
-                ))}
+                )}
               </div>
             </div>
             <ul className="menu w-full p-0">

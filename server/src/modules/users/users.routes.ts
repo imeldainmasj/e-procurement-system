@@ -6,13 +6,16 @@ import {
   userListQuerySchema,
   userUpdateSchema,
 } from '@sipita/shared';
-import { requireRole } from '../../middleware/rbac.js';
+import { requireAdmin } from '../../middleware/permission.js';
 import { validate } from '../../middleware/validate.js';
 import * as controller from './users.controller.js';
 
 export const usersRouter = Router();
 
-usersRouter.use(requireRole('SUPER_ADMIN'));
+// Every signed-in user needs the user list for PIC pickers and filters.
+usersRouter.get('/options', controller.options);
+
+usersRouter.use(requireAdmin);
 
 usersRouter.get('/', validate({ query: userListQuerySchema }), controller.list);
 usersRouter.get('/:id', validate({ params: idParamSchema }), controller.get);

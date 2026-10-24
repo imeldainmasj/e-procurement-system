@@ -1,35 +1,32 @@
 import {
-  ArrowLeftRight,
-  BadgeCheck,
-  Boxes,
+  BarChart3,
+  Briefcase,
   Building2,
-  ClipboardList,
+  CalendarClock,
+  ClipboardCheck,
   FileSignature,
-  FileText,
+  FileSpreadsheet,
+  Gauge,
   LayoutDashboard,
+  ListChecks,
   type LucideIcon,
-  Monitor,
-  PackageCheck,
-  PiggyBank,
+  Route,
   Settings,
-  ShoppingCart,
-  Tags,
   TrendingUp,
   Truck,
   Users,
-  Warehouse,
-  Workflow,
+  UsersRound,
 } from 'lucide-react';
-import { hasAnyRole, type Role } from '@sipita/shared';
+import { canAccess, type AccessSubject, type Feature } from '@sipita/shared';
+
+/** Who may open a page: a feature's view permission, or admins only (CLAUDE.md §4, §10). */
+export type NavAccess = { feature: Feature } | 'admin';
 
 export interface NavItem {
   label: string;
   path: string;
   icon: LucideIcon;
-  /** Empty = every authenticated user. SUPER_ADMIN sees everything. */
-  roles: Role[];
-  /** Shows a live counter next to the label. */
-  badge?: 'pendingApprovals';
+  access: NavAccess;
 }
 
 export interface NavSection {
@@ -37,84 +34,116 @@ export interface NavSection {
   items: NavItem[];
 }
 
-/** Single source for the sidebar menu and the role guard of each route (CLAUDE.md §8). */
+/** Single source for the sidebar menu and the guard of each route (CLAUDE.md §10). */
 export const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Menu',
     items: [
-      { label: 'Dashboard', path: '/', icon: LayoutDashboard, roles: [] },
-      { label: 'Pengajuan', path: '/pengajuan', icon: ClipboardList, roles: [] },
       {
-        label: 'Persetujuan',
-        path: '/persetujuan',
-        icon: BadgeCheck,
-        roles: ['APPROVER'],
-        badge: 'pendingApprovals',
+        label: 'Dashboard',
+        path: '/',
+        icon: LayoutDashboard,
+        access: { feature: 'DASHBOARD' },
+      },
+      {
+        label: 'Pekerjaan Saya',
+        path: '/pekerjaan/saya',
+        icon: ListChecks,
+        access: { feature: 'WORK' },
+      },
+      {
+        label: 'Semua Pekerjaan',
+        path: '/pekerjaan',
+        icon: Briefcase,
+        access: { feature: 'WORK' },
+      },
+      {
+        label: 'Monitoring Tim',
+        path: '/monitoring',
+        icon: UsersRound,
+        access: { feature: 'MONITORING' },
       },
     ],
   },
   {
     title: 'Pengadaan',
     items: [
-      { label: 'Memo Internal', path: '/memo', icon: FileText, roles: ['PROCUREMENT', 'APPROVER'] },
-      { label: 'Vendor', path: '/vendor', icon: Truck, roles: ['PROCUREMENT'] },
+      { label: 'Kontrak', path: '/kontrak', icon: FileSignature, access: { feature: 'AGREEMENT' } },
+      { label: 'Vendor', path: '/vendor', icon: Truck, access: { feature: 'VENDOR' } },
       {
-        label: 'Purchase Order',
-        path: '/purchase-order',
-        icon: ShoppingCart,
-        roles: ['PROCUREMENT'],
+        label: 'Import Excel',
+        path: '/import',
+        icon: FileSpreadsheet,
+        access: { feature: 'IMPORT' },
       },
-      { label: 'Kontrak', path: '/kontrak', icon: FileSignature, roles: ['PROCUREMENT'] },
     ],
   },
   {
-    title: 'Gudang & Aset',
+    title: 'Report',
     items: [
-      { label: 'Stok', path: '/gudang/stok', icon: Boxes, roles: ['WAREHOUSE'] },
       {
-        label: 'Penerimaan Barang',
-        path: '/gudang/penerimaan',
-        icon: PackageCheck,
-        roles: ['WAREHOUSE'],
+        label: 'Rekap Tahunan',
+        path: '/report/rekap-tahunan',
+        icon: BarChart3,
+        access: { feature: 'REPORT' },
       },
-      { label: 'Mutasi Stok', path: '/gudang/mutasi', icon: ArrowLeftRight, roles: ['WAREHOUSE'] },
-      { label: 'Aset IT', path: '/aset', icon: Monitor, roles: ['WAREHOUSE'] },
-    ],
-  },
-  {
-    title: 'Laporan',
-    items: [
       {
-        label: 'Riwayat Harga',
-        path: '/harga',
+        label: 'Tren Year-to-Year',
+        path: '/report/tren',
         icon: TrendingUp,
-        roles: ['PROCUREMENT', 'VIEWER'],
+        access: { feature: 'REPORT' },
       },
-      { label: 'Anggaran', path: '/anggaran', icon: PiggyBank, roles: ['PROCUREMENT', 'VIEWER'] },
+      {
+        label: 'Jatuh Tempo',
+        path: '/report/jatuh-tempo',
+        icon: CalendarClock,
+        access: { feature: 'REPORT' },
+      },
+      {
+        label: 'Riwayat Vendor',
+        path: '/report/vendor',
+        icon: Truck,
+        access: { feature: 'REPORT' },
+      },
+      {
+        label: 'Kepatuhan',
+        path: '/report/kepatuhan',
+        icon: ClipboardCheck,
+        access: { feature: 'REPORT' },
+      },
+      {
+        label: 'Kinerja Tim',
+        path: '/report/kinerja-tim',
+        icon: Gauge,
+        access: { feature: 'REPORT' },
+      },
     ],
   },
   {
     title: 'Pengaturan',
     items: [
-      { label: 'Pengguna', path: '/pengaturan/pengguna', icon: Users, roles: ['SUPER_ADMIN'] },
-      { label: 'Divisi', path: '/pengaturan/divisi', icon: Building2, roles: ['SUPER_ADMIN'] },
-      { label: 'Katalog Item', path: '/pengaturan/item', icon: Tags, roles: ['SUPER_ADMIN'] },
+      { label: 'Pengguna & Akses', path: '/pengaturan/pengguna', icon: Users, access: 'admin' },
+      { label: 'Organisasi', path: '/pengaturan/organisasi', icon: Building2, access: 'admin' },
       {
-        label: 'Aturan Approval',
-        path: '/pengaturan/aturan-approval',
-        icon: Workflow,
-        roles: ['SUPER_ADMIN'],
+        label: 'Template Milestone',
+        path: '/pengaturan/template-milestone',
+        icon: Route,
+        access: 'admin',
       },
-      { label: 'Gudang', path: '/pengaturan/gudang', icon: Warehouse, roles: ['SUPER_ADMIN'] },
-      { label: 'Umum', path: '/pengaturan/umum', icon: Settings, roles: ['SUPER_ADMIN'] },
+      { label: 'Ambang & Pengaturan', path: '/pengaturan/umum', icon: Settings, access: 'admin' },
     ],
   },
 ];
 
-/** Sections and items visible to a user with `roles`; empty sections are dropped. */
-export function getVisibleNav(roles: readonly Role[]): NavSection[] {
+export function hasNavAccess(subject: AccessSubject, access: NavAccess): boolean {
+  if (access === 'admin') return subject.isAdmin;
+  return canAccess(subject, access.feature, 'view');
+}
+
+/** Sections and items visible to `subject`; empty sections are dropped. */
+export function getVisibleNav(subject: AccessSubject): NavSection[] {
   return NAV_SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter((item) => hasAnyRole(roles, item.roles)),
+    items: section.items.filter((item) => hasNavAccess(subject, item.access)),
   })).filter((section) => section.items.length > 0);
 }

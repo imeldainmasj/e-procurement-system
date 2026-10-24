@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { AuthSession, AuthUser, LoginInput } from '@sipita/shared';
+import { toPermissionMap, type AuthSession, type AuthUser, type LoginInput } from '@sipita/shared';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { hashToken, signAccessToken, signRefreshToken, verifyRefreshToken } from '../../lib/jwt.js';
 import { logger } from '../../lib/logger.js';
@@ -15,14 +15,17 @@ export const REFRESH_REUSE_GRACE_MS = 30_000;
 
 const authUserSelect = {
   id: true,
+  employeeId: true,
+  username: true,
   name: true,
   email: true,
-  nip: true,
-  phone: true,
-  approvalLevel: true,
+  jobLevel: true,
+  isAdmin: true,
   isActive: true,
-  division: { select: { id: true, code: true, name: true } },
-  roles: { select: { role: { select: { code: true } } } },
+  department: { select: { id: true, code: true, name: true } },
+  permissions: {
+    select: { feature: true, canView: true, canCreate: true, canUpdate: true, canDelete: true },
+  },
 } satisfies Prisma.UserSelect;
 
 type AuthUserRecord = Prisma.UserGetPayload<{ select: typeof authUserSelect }>;
@@ -36,13 +39,14 @@ export interface IssuedSession {
 function toAuthUser(user: AuthUserRecord): AuthUser {
   return {
     id: user.id,
+    employeeId: user.employeeId,
+    username: user.username,
     name: user.name,
     email: user.email,
-    nip: user.nip,
-    phone: user.phone,
-    approvalLevel: user.approvalLevel,
-    division: user.division,
-    roles: user.roles.map((r) => r.role.code),
+    jobLevel: user.jobLevel,
+    isAdmin: user.isAdmin,
+    department: user.department,
+    permissions: toPermissionMap(user.permissions),
   };
 }
 
@@ -50,8 +54,8 @@ async function issueSession(user: AuthUserRecord, tx: TxClient = prisma): Promis
   const authUser = toAuthUser(user);
   const accessToken = signAccessToken({
     sub: authUser.id,
-    roles: authUser.roles,
-    approvalLevel: authUser.approvalLevel,
+    jobLevel: authUser.jobLevel,
+    isAdmin: authUser.isAdmin,
   });
 
   const tokenId = randomUUID();
@@ -68,17 +72,20 @@ async function issueSession(user: AuthUserRecord, tx: TxClient = prisma): Promis
 }
 
 const invalidCredentials = () =>
-  new AppError(401, 'INVALID_CREDENTIALS', 'Email atau password salah');
+  new AppError(401, 'INVALID_CREDENTIALS', 'Username/email atau password salah');
 const invalidRefresh = () =>
   new AppError(401, 'INVALID_REFRESH_TOKEN', 'Sesi tidak valid, silakan login kembali');
 
 export async function login(input: LoginInput): Promise<IssuedSession> {
   const user = await prisma.user.findFirst({
-    where: { email: input.email, deletedAt: null },
+    where: {
+      OR: [{ username: input.identifier }, { email: input.identifier }],
+      deletedAt: null,
+    },
     select: { ...authUserSelect, passwordHash: true },
   });
 
-  // Always run bcrypt, even for unknown emails, to keep timing uniform.
+  // Always run bcrypt, even for unknown users, to keep timing uniform.
   const passwordOk = await verifyPassword(input.password, user?.passwordHash);
   if (!user || !passwordOk) throw invalidCredentials();
   if (!user.isActive) throw new AppError(403, 'ACCOUNT_INACTIVE', 'Akun Anda dinonaktifkan');

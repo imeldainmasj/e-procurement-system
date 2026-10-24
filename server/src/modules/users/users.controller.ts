@@ -18,6 +18,10 @@ export const list: RequestHandler = async (req, res) => {
   sendSuccess(res, data, meta);
 };
 
+export const options: RequestHandler = async (_req, res) => {
+  sendSuccess(res, await service.options());
+};
+
 export const get: RequestHandler = async (req, res) => {
   sendSuccess(res, await service.get((req.params as IdParam).id));
 };

@@ -1,13 +1,10 @@
 import { NavLink } from 'react-router-dom';
 import { getVisibleNav } from '@/config/navigation';
-import { usePendingApprovalCount } from '@/hooks/useApprovals';
 import { usePermission } from '@/hooks/usePermission';
 
 export function Sidebar() {
-  const { roles } = usePermission();
-  const sections = getVisibleNav(roles);
-  const pendingApprovals = usePendingApprovalCount();
-  const badges = { pendingApprovals: pendingApprovals.data ?? 0 };
+  const { subject } = usePermission();
+  const sections = getVisibleNav(subject);
 
   const closeDrawer = () => {
     const toggle = document.getElementById('app-drawer') as HTMLInputElement | null;
@@ -27,14 +24,13 @@ export function Sidebar() {
               {section.items.map((item) => (
                 // NavLink adds `.active`, styled by `.menu-velzon` in index.css.
                 <li key={item.path}>
-                  <NavLink to={item.path} end={item.path === '/'} onClick={closeDrawer}>
+                  <NavLink
+                    to={item.path}
+                    end={item.path === '/' || item.path === '/pekerjaan'}
+                    onClick={closeDrawer}
+                  >
                     <item.icon className="size-[18px]" />
                     {item.label}
-                    {item.badge && badges[item.badge] > 0 && (
-                      <span className="badge badge-xs badge-error ml-auto">
-                        {badges[item.badge]}
-                      </span>
-                    )}
                   </NavLink>
                 </li>
               ))}

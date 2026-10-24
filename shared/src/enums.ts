@@ -1,98 +1,103 @@
 /**
  * Shared enums used by both client and server.
- * Keep values in sync with the Prisma schema enums.
+ * Keep values in sync with the Prisma schema enums (CLAUDE.md §6).
  */
 
-export const ROLES = [
-  'SUPER_ADMIN',
-  'REQUESTER',
-  'WAREHOUSE',
-  'PROCUREMENT',
-  'APPROVER',
-  'VIEWER',
+export const JOB_LEVELS = ['STAFF', 'MANAGER_L1', 'MANAGER_L2'] as const;
+export type JobLevel = (typeof JOB_LEVELS)[number];
+
+export const FEATURES = [
+  'DASHBOARD',
+  'WORK',
+  'MONITORING',
+  'AGREEMENT',
+  'VENDOR',
+  'REPORT',
+  'IMPORT',
+  'SETTINGS',
 ] as const;
-export type Role = (typeof ROLES)[number];
+export type Feature = (typeof FEATURES)[number];
 
-export const PR_STATUSES = [
-  'DRAFT',
-  'SUBMITTED',
-  'STOCK_CHECK',
-  'FULFILLED_FROM_STOCK',
-  'PENDING_APPROVAL',
-  'APPROVED',
-  'REJECTED',
-  'QUOTATION',
-  'PO_ISSUED',
-  'PARTIALLY_RECEIVED',
-  'RECEIVED',
-  'COMPLETED',
-  'CANCELLED',
+export const PERMISSION_ACTIONS = ['view', 'create', 'update', 'delete'] as const;
+export type PermissionAction = (typeof PERMISSION_ACTIONS)[number];
+
+export const PROCUREMENT_TYPES = ['RENEWAL_LICENSE', 'NEW_LICENSE', 'NEW_APPLICATION'] as const;
+export type ProcurementType = (typeof PROCUREMENT_TYPES)[number];
+
+export const PROJECT_CATEGORIES = ['BAU', 'PROJECT'] as const;
+export type ProjectCategory = (typeof PROJECT_CATEGORIES)[number];
+
+export const PROCUREMENT_METHODS = [
+  'TENDER',
+  'BIDDING',
+  'SPECIAL_EXTENSION',
+  'DIRECT_APPOINTMENT',
 ] as const;
-export type PrStatus = (typeof PR_STATUSES)[number];
+export type ProcurementMethod = (typeof PROCUREMENT_METHODS)[number];
 
-export const PR_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const;
-export type PrPriority = (typeof PR_PRIORITIES)[number];
+export const RFQ_METHODS = ['TENDER', 'BIDDING'] as const;
+export type RfqMethod = (typeof RFQ_METHODS)[number];
 
-/** CANCELLED: the PR was cancelled while its memo was still pending (not in CLAUDE.md §5). */
-export const MEMO_STATUSES = ['DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'] as const;
-export type MemoStatus = (typeof MEMO_STATUSES)[number];
-
-export const APPROVAL_STEP_STATUSES = [
-  'WAITING',
-  'PENDING',
-  'APPROVED',
-  'REJECTED',
-  'SKIPPED',
+export const MEMO_TYPES = [
+  'MEMO_PROCUREMENT',
+  'MEMO_PL',
+  'MEMO_PK',
+  'MOA_TENDER_RESULT',
+  'MOA_PL',
+  'MOA_PK',
+  'MOA_COST',
 ] as const;
-export type ApprovalStepStatus = (typeof APPROVAL_STEP_STATUSES)[number];
+export type MemoType = (typeof MEMO_TYPES)[number];
 
-export const PO_STATUSES = [
-  'DRAFT',
-  'ISSUED',
-  'PARTIALLY_RECEIVED',
-  'RECEIVED',
-  'CLOSED',
-  'CANCELLED',
+export const MILESTONE_TYPES = [
+  'MEMO',
+  'RFQ',
+  'PVP',
+  'OFFICIAL_APPROVAL',
+  'MOA_METHOD',
+  'MOA_COST',
+  'LOA',
+  'PO',
+  'AGREEMENT',
+  'AGREEMENT_OR_ADDENDUM',
 ] as const;
-export type PoStatus = (typeof PO_STATUSES)[number];
+export type MilestoneType = (typeof MILESTONE_TYPES)[number];
 
-export const CONTRACT_STATUSES = [
-  'DRAFT',
-  'ACTIVE',
-  'EXPIRING_SOON',
-  'EXPIRED',
-  'TERMINATED',
-  'RENEWED',
-] as const;
-export type ContractStatus = (typeof CONTRACT_STATUSES)[number];
+export const EXECUTORS = ['IT', 'OTHER_TEAM', 'DIRECTORS', 'OFFICIAL'] as const;
+export type Executor = (typeof EXECUTORS)[number];
 
-export const CONTRACT_TYPES = ['PURCHASE', 'RENTAL', 'MAINTENANCE', 'LICENSE', 'SERVICE'] as const;
-export type ContractType = (typeof CONTRACT_TYPES)[number];
+export const MILESTONE_STATUSES = ['NOT_STARTED', 'IN_PROGRESS', 'DONE', 'NOT_APPLICABLE'] as const;
+export type MilestoneStatus = (typeof MILESTONE_STATUSES)[number];
 
-export const ASSET_STATUSES = [
-  'AVAILABLE',
-  'IN_USE',
-  'IN_REPAIR',
-  'BROKEN',
-  'DISPOSED',
-  'LOST',
-] as const;
-export type AssetStatus = (typeof ASSET_STATUSES)[number];
+export const WORK_STATUSES = ['ACTIVE', 'ON_HOLD', 'COMPLETED', 'CANCELLED'] as const;
+export type WorkStatus = (typeof WORK_STATUSES)[number];
 
-export const VENDOR_STATUSES = ['ACTIVE', 'UNDER_REVIEW', 'BLACKLISTED', 'INACTIVE'] as const;
-export type VendorStatus = (typeof VENDOR_STATUSES)[number];
+export const PK_RESULTS = ['ADDENDUM', 'NEW_AGREEMENT'] as const;
+export type PkResult = (typeof PK_RESULTS)[number];
 
-export const VENDOR_DOCUMENT_TYPES = ['SIUP', 'NIB', 'NPWP', 'AKTA', 'LAINNYA'] as const;
-export type VendorDocumentType = (typeof VENDOR_DOCUMENT_TYPES)[number];
+export const PVP_STATUSES = ['PENDING', 'APPROVED', 'REJECTED'] as const;
+export type PvpStatus = (typeof PVP_STATUSES)[number];
 
-export const STOCK_MOVEMENT_TYPES = ['IN', 'OUT', 'ADJUSTMENT', 'TRANSFER'] as const;
-export type StockMovementType = (typeof STOCK_MOVEMENT_TYPES)[number];
+export const PVP_DECISIONS = ['APPROVED', 'REJECTED'] as const;
+export type PvpDecision = (typeof PVP_DECISIONS)[number];
 
-export const GOODS_CONDITIONS = ['GOOD', 'DAMAGED'] as const;
-export type GoodsCondition = (typeof GOODS_CONDITIONS)[number];
+export const PO_TYPES = ['NEW', 'RENEWAL'] as const;
+export type PoType = (typeof PO_TYPES)[number];
 
-export const PRICE_SOURCE_TYPES = ['QUOTATION', 'PO'] as const;
-export type PriceSourceType = (typeof PRICE_SOURCE_TYPES)[number];
+export const AGREEMENT_TYPES = ['NEW', 'RENEWAL'] as const;
+export type AgreementType = (typeof AGREEMENT_TYPES)[number];
+
+export const AGREEMENT_STATUSES = ['ACTIVE', 'EXPIRING_SOON', 'EXPIRED', 'TERMINATED'] as const;
+export type AgreementStatus = (typeof AGREEMENT_STATUSES)[number];
+
+export const IMPORT_STATUSES = ['PREVIEW', 'COMMITTED', 'ROLLED_BACK', 'FAILED'] as const;
+export type ImportStatus = (typeof IMPORT_STATUSES)[number];
+
+export const ISSUE_LEVELS = ['ERROR', 'WARNING'] as const;
+export type IssueLevel = (typeof ISSUE_LEVELS)[number];
+
+export const AUDIT_SOURCES = ['APP', 'IMPORT'] as const;
+export type AuditSource = (typeof AUDIT_SOURCES)[number];
 
 export const AUDIT_ACTIONS = [
   'CREATE',
@@ -100,7 +105,7 @@ export const AUDIT_ACTIONS = [
   'DELETE',
   'STATUS_CHANGE',
   'RESET_PASSWORD',
-  'APPROVE',
-  'REJECT',
+  'REASSIGN',
+  'ROLLBACK',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

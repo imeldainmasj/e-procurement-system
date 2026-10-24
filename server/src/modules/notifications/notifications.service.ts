@@ -1,4 +1,8 @@
-import type { NotificationDto, Role, notificationListQuerySchema } from '@sipita/shared';
+import {
+  MANAGER_LEVELS,
+  type NotificationDto,
+  type notificationListQuerySchema,
+} from '@sipita/shared';
 import type { z } from 'zod';
 import { env } from '../../config/env.js';
 import type { Email } from '../../lib/mailer.js';
@@ -11,7 +15,7 @@ export interface NotificationPayload {
   type: string;
   title: string;
   message: string;
-  /** Client route, e.g. /pengajuan/:id */
+  /** Client route, e.g. /pekerjaan/:id */
   link?: string;
   /** Also email the recipients (delivered after the transaction commits). */
   email?: boolean;
@@ -54,17 +58,10 @@ export async function notifyUsers(
   }));
 }
 
-export async function findUserIdsByRole(tx: TxClient, role: Role): Promise<string[]> {
+/** Active managers (MANAGER_L1 / MANAGER_L2), e.g. for contract and stale-work summaries. */
+export async function findManagerIds(tx: TxClient): Promise<string[]> {
   const users = await tx.user.findMany({
-    where: { ...activeUser, roles: { some: { role: { code: role } } } },
-    select: { id: true },
-  });
-  return users.map((u) => u.id);
-}
-
-export async function findApproverIds(tx: TxClient, level: number): Promise<string[]> {
-  const users = await tx.user.findMany({
-    where: { ...activeUser, approvalLevel: level, roles: { some: { role: { code: 'APPROVER' } } } },
+    where: { ...activeUser, jobLevel: { in: [...MANAGER_LEVELS] } },
     select: { id: true },
   });
   return users.map((u) => u.id);

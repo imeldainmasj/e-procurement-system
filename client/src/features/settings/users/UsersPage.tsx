@@ -1,17 +1,16 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import { KeyRound, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { ROLE_LABELS, ROLES, type UserDto } from '@sipita/shared';
+import { JOB_LEVEL_LABELS, JOB_LEVELS, type UserDto } from '@sipita/shared';
 import { getErrorMessage } from '@/api/client';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { DataTable } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ActiveBadge } from '@/components/ui/StatusBadge';
 import { useListParams } from '@/hooks/useListParams';
-import { useDivisionOptions, userHooks } from '@/hooks/useMasterData';
+import { useDepartmentOptions, userHooks } from '@/hooks/useMasterData';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
-import { levelLabel } from '@/utils/approvalRule';
 import { formatDateTime } from '@/utils/formatDate';
 import { ResetPasswordModal } from './ResetPasswordModal';
 import { UserFormModal } from './UserFormModal';
@@ -20,7 +19,7 @@ export function UsersPage() {
   const currentUserId = useAuthStore((s) => s.user?.id);
   const [params, setParams] = useListParams({ sort: 'name:asc' });
   const list = userHooks.useList(params);
-  const divisions = useDivisionOptions();
+  const departments = useDepartmentOptions();
   const remove = userHooks.useRemove();
   const [editing, setEditing] = useState<UserDto | 'new' | null>(null);
   const [resetting, setResetting] = useState<UserDto | null>(null);
@@ -39,28 +38,36 @@ export function UsersPage() {
           </div>
         ),
       },
-      { id: 'nip', header: 'NIP', enableSorting: true, cell: ({ row }) => row.original.nip ?? '-' },
       {
-        id: 'division.name',
-        header: 'Divisi',
+        id: 'username',
+        header: 'Username',
         enableSorting: true,
-        cell: ({ row }) => row.original.division?.name ?? '-',
-      },
-      {
-        id: 'roles',
-        header: 'Role',
         cell: ({ row }) => (
-          <div className="flex flex-wrap gap-1">
-            {row.original.roles.map((role) => (
-              <span key={role} className="badge badge-sm badge-outline whitespace-nowrap">
-                {ROLE_LABELS[role]}
-                {role === 'APPROVER' && row.original.approvalLevel
-                  ? ` · ${levelLabel(row.original.approvalLevel)}`
-                  : ''}
-              </span>
-            ))}
+          <div>
+            <div className="font-mono text-sm">{row.original.username}</div>
+            <div className="text-base-content/60 text-xs">{row.original.employeeId}</div>
           </div>
         ),
+      },
+      {
+        id: 'jobLevel',
+        header: 'Jabatan',
+        enableSorting: true,
+        cell: ({ row }) => (
+          <div className="flex flex-wrap gap-1">
+            <span className="badge badge-sm badge-soft badge-primary whitespace-nowrap">
+              {JOB_LEVEL_LABELS[row.original.jobLevel]}
+            </span>
+            {row.original.isAdmin && (
+              <span className="badge badge-sm badge-soft badge-secondary">Admin</span>
+            )}
+          </div>
+        ),
+      },
+      {
+        id: 'department',
+        header: 'Departemen',
+        cell: ({ row }) => row.original.department?.name ?? '-',
       },
       {
         id: 'isActive',
@@ -128,8 +135,8 @@ export function UsersPage() {
   return (
     <>
       <PageHeader
-        title="Pengguna"
-        description="Kelola akun, role, dan level approval."
+        title="Pengguna & Akses"
+        description="Kelola akun tim IT SAPM, jabatan, dan hak akses per fitur."
         actions={
           <button
             type="button"
@@ -149,31 +156,31 @@ export function UsersPage() {
         isLoading={list.isPending}
         isFetching={list.isFetching}
         error={list.error}
-        searchPlaceholder="Cari nama, email, atau NIP..."
+        searchPlaceholder="Cari nama, username, email, atau NIK..."
         getRowId={(u) => u.id}
         filters={
           <>
             <select
               className="select select-sm w-auto"
-              value={String(params.role ?? '')}
-              onChange={(e) => setParams({ role: e.target.value || undefined })}
-              aria-label="Filter role"
+              value={String(params.jobLevel ?? '')}
+              onChange={(e) => setParams({ jobLevel: e.target.value || undefined })}
+              aria-label="Filter jabatan"
             >
-              <option value="">Semua role</option>
-              {ROLES.map((role) => (
-                <option key={role} value={role}>
-                  {ROLE_LABELS[role]}
+              <option value="">Semua jabatan</option>
+              {JOB_LEVELS.map((level) => (
+                <option key={level} value={level}>
+                  {JOB_LEVEL_LABELS[level]}
                 </option>
               ))}
             </select>
             <select
               className="select select-sm w-auto"
-              value={String(params.divisionId ?? '')}
-              onChange={(e) => setParams({ divisionId: e.target.value || undefined })}
-              aria-label="Filter divisi"
+              value={String(params.departmentId ?? '')}
+              onChange={(e) => setParams({ departmentId: e.target.value || undefined })}
+              aria-label="Filter departemen"
             >
-              <option value="">Semua divisi</option>
-              {divisions.data?.data.map((d) => (
+              <option value="">Semua departemen</option>
+              {departments.data?.data.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
                 </option>

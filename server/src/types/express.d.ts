@@ -1,9 +1,9 @@
-import type { Role } from '@sipita/shared';
+import type { JobLevel, PermissionMap } from '@sipita/shared';
 
 export interface AuthContext {
   id: string;
-  roles: Role[];
-  approvalLevel: number | null;
+  jobLevel: JobLevel;
+  isAdmin: boolean;
 }
 
 declare global {
@@ -11,6 +11,8 @@ declare global {
     interface Request {
       /** Set by the `authenticate` middleware. */
       user?: AuthContext;
+      /** Loaded once per request by `requirePermission`. */
+      permissions?: PermissionMap;
     }
   }
 }

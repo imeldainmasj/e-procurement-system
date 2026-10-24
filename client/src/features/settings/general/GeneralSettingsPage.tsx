@@ -1,95 +1,158 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { type SettingsDto, type SettingsInput, settingsInputSchema } from '@sipita/shared';
 import { getErrorMessage } from '@/api/client';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { FormError } from '@/components/ui/FormError';
 import { FormField } from '@/components/ui/FormField';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
-import { useSettings, useUpdateSettings } from '@/hooks/useProcurement';
+import { useSettings, useUpdateSettings } from '@/hooks/useSettings';
 import { toast } from '@/stores/toastStore';
 import { applyServerFieldErrors } from '@/utils/formErrors';
+
+/** Reminder days are edited as "90, 60, 30" text. */
+type FormValues = Omit<SettingsInput, 'CONTRACT_REMINDER_DAYS'> & {
+  CONTRACT_REMINDER_DAYS: string;
+};
+
+const toForm = (s: SettingsDto): FormValues => ({
+  ...s,
+  CONTRACT_REMINDER_DAYS: s.CONTRACT_REMINDER_DAYS.join(', '),
+});
+
+const parseDays = (text: string) =>
+  text
+    .split(/[,\s]+/)
+    .filter(Boolean)
+    .map(Number);
 
 function SettingsForm({ settings }: { settings: SettingsDto }) {
   const update = useUpdateSettings();
   const {
     register,
+    control,
     handleSubmit,
     setError,
     reset,
     formState: { errors, isDirty },
-  } = useForm<SettingsInput, unknown, SettingsDto>({
-    resolver: zodResolver(settingsInputSchema),
-    defaultValues: { ...settings, PO_DEFAULT_TERMS: settings.PO_DEFAULT_TERMS ?? '' },
-  });
+  } = useForm<FormValues>({ defaultValues: toForm(settings) });
 
-  const onSubmit = handleSubmit((input) =>
-    update.mutate(input, {
+  const onSubmit = handleSubmit((values) => {
+    const parsed = settingsInputSchema.safeParse({
+      ...values,
+      CONTRACT_REMINDER_DAYS: parseDays(values.CONTRACT_REMINDER_DAYS),
+    });
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) {
+        const field = issue.path[0] as keyof FormValues;
+        setError(field, { message: issue.message });
+      }
+      return;
+    }
+    update.mutate(parsed.data, {
       onSuccess: (saved) => {
         toast.success('Pengaturan disimpan');
-        reset({ ...saved, PO_DEFAULT_TERMS: saved.PO_DEFAULT_TERMS ?? '' });
+        reset(toForm(saved));
       },
       onError: (err) => applyServerFieldErrors(err, setError),
-    }),
-  );
+    });
+  });
 
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-6">
       <FormError error={update.error} />
       <SectionCard
-        title="Identitas Perusahaan"
-        description="Ditampilkan di kop dan alamat kirim PO."
+        title="Metode Pengadaan & PVP Forum"
+        description="Ambang dalam IDR. Dipakai untuk saran metode, penentuan PVP wajib, dan peringatan."
       >
         <div className="grid grid-cols-1 gap-x-4 md:grid-cols-2">
-          <FormField label="Nama Perusahaan" required error={errors.COMPANY_NAME?.message}>
-            <input className="input w-full" {...register('COMPANY_NAME')} />
-          </FormField>
           <FormField
-            label="Alamat (default alamat pengiriman)"
+            label="Ambang Tender"
             required
-            error={errors.COMPANY_ADDRESS?.message}
+            error={errors.TENDER_MIN_AMOUNT?.message}
+            hint="Nilai di atas ambang ini → Tender; sama atau di bawahnya → Bidding."
           >
-            <textarea className="textarea w-full" rows={2} {...register('COMPANY_ADDRESS')} />
-          </FormField>
-        </div>
-      </SectionCard>
-      <SectionCard title="Pengadaan">
-        <div className="grid grid-cols-1 gap-x-4 md:grid-cols-2">
-          <FormField
-            label="Minimal Jumlah Penawaran"
-            required
-            error={errors.MIN_QUOTATIONS?.message}
-            hint="Di bawah jumlah ini, pemilihan pemenang wajib disertai justifikasi."
-          >
-            <input
-              type="number"
-              min={1}
-              max={10}
-              className="input w-full"
-              {...register('MIN_QUOTATIONS')}
+            <Controller
+              control={control}
+              name="TENDER_MIN_AMOUNT"
+              render={({ field }) => (
+                <CurrencyInput
+                  value={field.value as number}
+                  onChange={field.onChange}
+                  error={Boolean(errors.TENDER_MIN_AMOUNT)}
+                />
+              )}
             />
           </FormField>
           <FormField
-            label="PPN Default (%)"
+            label="Ambang Nilai PVP"
             required
-            error={errors.PO_DEFAULT_TAX_PERCENT?.message}
-            hint="Nilai awal pada form PO; tetap bisa diubah per PO."
+            error={errors.PVP_MIN_AMOUNT?.message}
+            hint="PVP wajib jika nilai di atas ambang ini (lihat juga ambang kenaikan)."
+          >
+            <Controller
+              control={control}
+              name="PVP_MIN_AMOUNT"
+              render={({ field }) => (
+                <CurrencyInput
+                  value={field.value as number}
+                  onChange={field.onChange}
+                  error={Boolean(errors.PVP_MIN_AMOUNT)}
+                />
+              )}
+            />
+          </FormField>
+          <FormField
+            label="Ambang Kenaikan YoY PVP (%)"
+            required
+            error={errors.PVP_MIN_INCREASE_PERCENT?.message}
+            hint="Untuk pengadaan dengan data tahun sebelumnya."
           >
             <input
               type="number"
               step="0.01"
               min={0}
-              max={100}
               className="input w-full"
-              {...register('PO_DEFAULT_TAX_PERCENT')}
+              {...register('PVP_MIN_INCREASE_PERCENT')}
             />
           </FormField>
           <FormField
-            label="Syarat & Ketentuan Default PO"
-            error={errors.PO_DEFAULT_TERMS?.message}
-            className="md:col-span-2"
+            label="Minimal Approval Direktur"
+            required
+            error={errors.PVP_MIN_DIRECTOR_APPROVALS?.message}
+            hint="PVP dianggap selesai jika jumlah direktur yang menyetujui mencapai angka ini."
           >
-            <textarea className="textarea w-full" rows={4} {...register('PO_DEFAULT_TERMS')} />
+            <input
+              type="number"
+              min={1}
+              className="input w-full"
+              {...register('PVP_MIN_DIRECTOR_APPROVALS')}
+            />
+          </FormField>
+        </div>
+      </SectionCard>
+      <SectionCard title="Monitoring & Pengingat">
+        <div className="grid grid-cols-1 gap-x-4 md:grid-cols-2">
+          <FormField
+            label="Batas Hari Tanpa Update"
+            required
+            error={errors.STALE_WORK_DAYS?.message}
+            hint="Pekerjaan aktif yang tidak di-update selama ini ditandai dan diingatkan."
+          >
+            <input
+              type="number"
+              min={1}
+              className="input w-full"
+              {...register('STALE_WORK_DAYS')}
+            />
+          </FormField>
+          <FormField
+            label="Pengingat Kontrak (hari sebelum berakhir)"
+            required
+            error={errors.CONTRACT_REMINDER_DAYS?.message}
+            hint="Pisahkan dengan koma, mis. 90, 60, 30."
+          >
+            <input className="input w-full" {...register('CONTRACT_REMINDER_DAYS')} />
           </FormField>
         </div>
       </SectionCard>
@@ -108,8 +171,8 @@ export function GeneralSettingsPage() {
   return (
     <>
       <PageHeader
-        title="Pengaturan Umum"
-        description="Identitas perusahaan dan aturan pengadaan."
+        title="Ambang & Pengaturan"
+        description="Ambang metode pengadaan, PVP Forum, dan pengingat. Perubahan berlaku untuk data berikutnya."
       />
       {settings.isPending ? (
         <div className="skeleton h-96 w-full" />

@@ -1,18 +1,10 @@
-import { dayjs } from '../lib/dayjs.js';
 import type { TxClient } from '../lib/prisma.js';
 
-export const DOCUMENT_PREFIX = {
-  PURCHASE_REQUEST: 'PR-IT',
-  MEMO: 'MEMO-IT',
-  PURCHASE_ORDER: 'PO-IT',
-  GOODS_RECEIPT: 'GR-IT',
-  CONTRACT: 'KTR-IT',
-  ASSET: 'AST-IT',
-} as const;
-export type DocumentPrefix = (typeof DOCUMENT_PREFIX)[keyof typeof DOCUMENT_PREFIX];
-
-/** Sequences that never reset are stored under year 0. */
-const NO_RESET_YEAR = 0;
+/**
+ * Document numbers (memo, RFQ, LoA, PO, agreement, addendum) come from the original
+ * documents and are typed in (CLAUDE.md §5.8). The only generated number is the work code.
+ */
+export const WORK_CODE_PREFIX = 'WRK';
 
 /**
  * Increments and returns the counter for (prefix, year). The row is locked with
@@ -37,23 +29,11 @@ async function nextSequence(tx: TxClient, prefix: string, year: number): Promise
   return next;
 }
 
-export function formatDocumentNumber(prefix: string, date: Date, sequence: number): string {
-  const d = dayjs(date).tz();
-  return `${prefix}/${d.format('YYYY')}/${d.format('MM')}/${String(sequence).padStart(4, '0')}`;
+export function formatWorkCode(procurementYear: number, sequence: number): string {
+  return `${WORK_CODE_PREFIX}-${procurementYear}-${String(sequence).padStart(4, '0')}`;
 }
 
-/** `{PREFIX}/{YYYY}/{MM}/{NNNN}`, counter resets every year (Asia/Jakarta). */
-export async function nextDocumentNumber(
-  tx: TxClient,
-  prefix: Exclude<DocumentPrefix, 'AST-IT'>,
-  date: Date = new Date(),
-): Promise<string> {
-  const year = dayjs(date).tz().year();
-  return formatDocumentNumber(prefix, date, await nextSequence(tx, prefix, year));
-}
-
-/** `AST-IT-000123`, never resets. */
-export async function nextAssetTag(tx: TxClient): Promise<string> {
-  const seq = await nextSequence(tx, DOCUMENT_PREFIX.ASSET, NO_RESET_YEAR);
-  return `${DOCUMENT_PREFIX.ASSET}-${String(seq).padStart(6, '0')}`;
+/** `WRK-{YYYY}-{NNNN}`; YYYY is the procurement year, the counter restarts each year. */
+export async function nextWorkCode(tx: TxClient, procurementYear: number): Promise<string> {
+  return formatWorkCode(procurementYear, await nextSequence(tx, WORK_CODE_PREFIX, procurementYear));
 }

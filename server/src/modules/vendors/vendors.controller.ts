@@ -1,11 +1,5 @@
 import type { RequestHandler } from 'express';
-import type {
-  IdParam,
-  VendorPayload,
-  vendorDocumentInputSchema,
-  vendorListQuerySchema,
-  vendorStatusInputSchema,
-} from '@sipita/shared';
+import type { IdParam, VendorPayload, vendorListQuerySchema } from '@sipita/shared';
 import type { z } from 'zod';
 import { getActor } from '../../utils/actor.js';
 import { sendSuccess } from '../../utils/response.js';
@@ -32,36 +26,7 @@ export const update: RequestHandler = async (req, res) => {
   sendSuccess(res, await service.update(idOf(req), req.body as VendorPayload, getActor(req)));
 };
 
-export const changeStatus: RequestHandler = async (req, res) => {
-  const { status, reason } = req.body as z.output<typeof vendorStatusInputSchema>;
-  sendSuccess(res, await service.changeStatus(idOf(req), status, reason, getActor(req)));
-};
-
 export const remove: RequestHandler = async (req, res) => {
   await service.remove(idOf(req), getActor(req));
-  sendSuccess(res, null);
-};
-
-export const listRatings: RequestHandler = async (req, res) => {
-  const { data, meta } = await service.listRatings(
-    idOf(req),
-    req.query as unknown as { page: number; limit: number },
-  );
-  sendSuccess(res, data, meta);
-};
-
-export const addDocument: RequestHandler = async (req, res) => {
-  const input = req.body as z.output<typeof vendorDocumentInputSchema>;
-  sendSuccess(
-    res,
-    await service.addDocument(idOf(req), input, req.file, getActor(req)),
-    undefined,
-    201,
-  );
-};
-
-export const removeDocument: RequestHandler = async (req, res) => {
-  const { id, documentId } = req.params as { id: string; documentId: string };
-  await service.removeDocument(id, documentId, getActor(req));
   sendSuccess(res, null);
 };

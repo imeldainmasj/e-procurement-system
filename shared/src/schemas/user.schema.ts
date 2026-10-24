@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { ROLES, type Role } from '../enums.js';
+import type { PermissionMap } from '../access.js';
+import { FEATURES, JOB_LEVELS, type JobLevel } from '../enums.js';
 import {
   booleanQuerySchema,
   listQuerySchema,
-  optionalText,
   optionalUuid,
   requiredText,
   uuidSchema,
@@ -16,49 +16,52 @@ export const passwordSchema = z
   .regex(/[A-Za-z]/, { message: 'Password harus mengandung huruf' })
   .regex(/\d/, { message: 'Password harus mengandung angka' });
 
+/** Lowercase login name, e.g. "andi.pratama" (used by the import template's PIC column). */
+export const usernameSchema = z
+  .string({ message: 'Username wajib diisi' })
+  .trim()
+  .toLowerCase()
+  .min(3, { message: 'Username minimal 3 karakter' })
+  .max(50, { message: 'Username maksimal 50 karakter' })
+  .regex(/^[a-z0-9][a-z0-9._-]*$/, {
+    message: 'Username hanya boleh huruf kecil, angka, titik, - dan _',
+  });
+
+const permissionFlagsSchema = z.object({
+  view: z.boolean(),
+  create: z.boolean(),
+  update: z.boolean(),
+  delete: z.boolean(),
+});
+
+export const permissionMapSchema = z.object(
+  Object.fromEntries(FEATURES.map((f) => [f, permissionFlagsSchema])) as Record<
+    (typeof FEATURES)[number],
+    typeof permissionFlagsSchema
+  >,
+);
+
 const userBaseSchema = z.object({
+  employeeId: requiredText('NIK karyawan', 30),
+  username: usernameSchema,
   name: requiredText('Nama', 100),
   email: z
     .string({ message: 'Email wajib diisi' })
     .trim()
     .toLowerCase()
     .pipe(z.email({ message: 'Format email tidak valid' })),
-  nip: optionalText(30),
-  phone: optionalText(30),
-  divisionId: optionalUuid,
-  roles: z
-    .array(z.enum(ROLES), { message: 'Role wajib dipilih' })
-    .min(1, { message: 'Pilih minimal satu role' })
-    .refine((roles) => new Set(roles).size === roles.length, {
-      message: 'Role tidak boleh duplikat',
-    }),
-  approvalLevel: z.coerce
-    .number()
-    .int()
-    .min(1, { message: 'Level approval minimal 1' })
-    .max(10, { message: 'Level approval maksimal 10' })
-    .nullish()
-    .transform((v) => v ?? null),
+  jobLevel: z.enum(JOB_LEVELS, { message: 'Jabatan wajib dipilih' }),
+  departmentId: optionalUuid,
+  isAdmin: z.boolean().default(false),
   isActive: z.boolean().default(true),
+  permissions: permissionMapSchema,
 });
 
-/** APPROVER needs a level; other users never keep one. */
-function withApprovalLevelRule<T extends z.ZodType<z.output<typeof userBaseSchema>>>(schema: T) {
-  return schema
-    .refine((u) => !u.roles.includes('APPROVER') || u.approvalLevel !== null, {
-      message: 'Level approval wajib diisi untuk role Approver',
-      path: ['approvalLevel'],
-    })
-    .transform((u) => (u.roles.includes('APPROVER') ? u : { ...u, approvalLevel: null }));
-}
-
-export const userCreateSchema = withApprovalLevelRule(
-  userBaseSchema.extend({ password: passwordSchema }),
-);
+export const userCreateSchema = userBaseSchema.extend({ password: passwordSchema });
 export type UserCreateInput = z.input<typeof userCreateSchema>;
 export type UserCreatePayload = z.output<typeof userCreateSchema>;
 
-export const userUpdateSchema = withApprovalLevelRule(userBaseSchema);
+export const userUpdateSchema = userBaseSchema;
 export type UserUpdateInput = z.input<typeof userUpdateSchema>;
 export type UserUpdatePayload = z.output<typeof userUpdateSchema>;
 
@@ -66,22 +69,31 @@ export const resetPasswordSchema = z.object({ password: passwordSchema });
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
 export const userListQuerySchema = listQuerySchema.extend({
-  role: z.enum(ROLES).optional(),
-  divisionId: uuidSchema.optional(),
+  jobLevel: z.enum(JOB_LEVELS).optional(),
+  departmentId: uuidSchema.optional(),
   isActive: booleanQuerySchema.optional(),
 });
 
 export interface UserDto {
   id: string;
+  employeeId: string;
+  username: string;
   name: string;
   email: string;
-  nip: string | null;
-  phone: string | null;
-  approvalLevel: number | null;
+  jobLevel: JobLevel;
+  isAdmin: boolean;
   isActive: boolean;
   lastLoginAt: string | null;
-  division: { id: string; code: string; name: string } | null;
-  roles: Role[];
+  department: { id: string; code: string; name: string } | null;
+  permissions: PermissionMap;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Compact user for pickers (PIC, filters). */
+export interface UserOptionDto {
+  id: string;
+  name: string;
+  username: string;
+  jobLevel: JobLevel;
 }

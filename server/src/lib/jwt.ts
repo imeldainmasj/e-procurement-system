@@ -1,14 +1,14 @@
 import { createHash } from 'node:crypto';
 import jwt, { type SignOptions } from 'jsonwebtoken';
 import { z } from 'zod';
-import { ROLES } from '@sipita/shared';
+import { JOB_LEVELS } from '@sipita/shared';
 import { env } from '../config/env.js';
 import { AppError } from '../utils/AppError.js';
 
 const accessPayloadSchema = z.object({
   sub: z.string(),
-  roles: z.array(z.enum(ROLES)),
-  approvalLevel: z.number().int().nullable(),
+  jobLevel: z.enum(JOB_LEVELS),
+  isAdmin: z.boolean(),
 });
 export type AccessTokenPayload = z.infer<typeof accessPayloadSchema>;
 
