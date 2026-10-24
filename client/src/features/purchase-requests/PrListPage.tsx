@@ -20,6 +20,7 @@ import { usePurchaseRequests } from '@/hooks/usePurchaseRequests';
 import { useAuthStore } from '@/stores/authStore';
 import { formatDate } from '@/utils/formatDate';
 import { PriorityBadge, PrStatusBadge } from './components/PrBadges';
+import { RequesterFilter } from './components/RequesterFilter';
 
 export function PrListPage() {
   const user = useAuthStore((s) => s.user);
@@ -116,7 +117,7 @@ export function PrListPage() {
         }
         actions={
           <Can role="REQUESTER">
-            <Link to="/pengajuan/baru" className="btn btn-primary btn-sm">
+            <Link to="/pengajuan/baru" className="btn btn-soft btn-secondary btn-sm">
               <Plus className="size-4" /> Buat Pengajuan
             </Link>
           </Can>
@@ -176,6 +177,10 @@ export function PrListPage() {
                     </option>
                   ))}
                 </select>
+                <RequesterFilter
+                  value={params.requesterId as string | undefined}
+                  onChange={(requesterId) => setParams({ requesterId })}
+                />
                 <label className="flex cursor-pointer items-center gap-2 text-sm">
                   <input
                     type="checkbox"

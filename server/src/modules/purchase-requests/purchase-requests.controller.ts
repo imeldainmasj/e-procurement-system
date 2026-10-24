@@ -5,6 +5,7 @@ import type {
   PrStockCheckInput,
   ReasonInput,
   prListQuerySchema,
+  prRequesterQuerySchema,
 } from '@sipita/shared';
 import type { z } from 'zod';
 import { getActor } from '../../utils/actor.js';
@@ -12,11 +13,16 @@ import { sendSuccess } from '../../utils/response.js';
 import * as service from './purchase-requests.service.js';
 
 type ListQuery = z.output<typeof prListQuerySchema>;
+type RequesterQuery = z.output<typeof prRequesterQuerySchema>;
 const idOf = (req: Parameters<RequestHandler>[0]) => (req.params as IdParam).id;
 
 export const list: RequestHandler = async (req, res) => {
   const { data, meta } = await service.list(req.query as unknown as ListQuery, getActor(req));
   sendSuccess(res, data, meta);
+};
+
+export const requesters: RequestHandler = async (req, res) => {
+  sendSuccess(res, await service.requesters(req.query as unknown as RequesterQuery, getActor(req)));
 };
 
 export const get: RequestHandler = async (req, res) => {

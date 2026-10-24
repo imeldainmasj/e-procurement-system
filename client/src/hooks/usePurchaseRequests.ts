@@ -13,6 +13,14 @@ export function usePurchaseRequests(params: ListParams) {
   });
 }
 
+export function usePrRequesters(search: string, enabled: boolean) {
+  return useQuery({
+    queryKey: [KEY, 'requesters', search],
+    queryFn: () => purchaseRequestsApi.requesters(search || undefined),
+    enabled,
+  });
+}
+
 export function usePurchaseRequest(id: string | undefined) {
   return useQuery({
     queryKey: [KEY, id],

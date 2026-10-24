@@ -68,11 +68,24 @@ export const prListQuerySchema = listQuerySchema.extend({
   status: z.enum(PR_STATUSES).optional(),
   priority: z.enum(PR_PRIORITIES).optional(),
   divisionId: uuidSchema.optional(),
+  requesterId: uuidSchema.optional(),
   /** Only PRs requested by the current user. */
   mine: booleanQuerySchema.optional(),
   dateFrom: z.iso.date().optional(),
   dateTo: z.iso.date().optional(),
 });
+
+/** Options for the requester filter: users with at least one PR visible to the actor. */
+export const prRequesterQuerySchema = z.object({
+  search: z.string().trim().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+export interface PrRequesterOptionDto {
+  id: string;
+  name: string;
+  division: { id: string; name: string } | null;
+}
 
 export interface PrItemDto {
   id: string;

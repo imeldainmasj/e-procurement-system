@@ -197,6 +197,36 @@ describe('visibility', () => {
       .set(a.headers);
     expect(search.body.data.map((p: { id: string }) => p.id)).toEqual([bPr.id]);
   });
+
+  it('filters by requester and lists only requesters with visible PRs', async () => {
+    const budi = await createTestUser({ name: 'Budi Santoso', roles: ['REQUESTER'], divisionId });
+    const budiHeaders = authHeader(budi, ['REQUESTER']);
+    const citra = await createTestUser({ name: 'Citra Lestari', roles: ['REQUESTER'], divisionId });
+    const citraHeaders = authHeader(citra, ['REQUESTER']);
+    const dewi = await createTestUser({ name: 'Dewi Anggraini', roles: ['REQUESTER'], divisionId });
+    const viewer = await userWith(['VIEWER']);
+    const budiPr = await submitted(budiHeaders);
+    await submitted(citraHeaders);
+    // Dewi only has a draft, which the viewer cannot see.
+    await createDraft(authHeader(dewi, ['REQUESTER']));
+
+    const filtered = await request(app).get(`${api}?requesterId=${budi.id}`).set(viewer.headers);
+    expect(filtered.body.data.map((p: { id: string }) => p.id)).toEqual([budiPr.id]);
+
+    const options = await request(app).get(`${api}/requesters`).set(viewer.headers);
+    expect(options.status).toBe(200);
+    expect(options.body.data).toMatchObject([
+      { id: budi.id, name: 'Budi Santoso', division: { name: 'Operasional' } },
+      { id: citra.id, name: 'Citra Lestari' },
+    ]);
+
+    const searched = await request(app).get(`${api}/requesters?search=citra`).set(viewer.headers);
+    expect(searched.body.data.map((u: { id: string }) => u.id)).toEqual([citra.id]);
+
+    // A requester only ever sees themselves.
+    const own = await request(app).get(`${api}/requesters`).set(budiHeaders);
+    expect(own.body.data.map((u: { id: string }) => u.id)).toEqual([budi.id]);
+  });
 });
 
 describe('workflow', () => {

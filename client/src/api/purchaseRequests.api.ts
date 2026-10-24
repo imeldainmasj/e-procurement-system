@@ -4,6 +4,7 @@ import type {
   PrHistoryEntryDto,
   PrInput,
   PrListItemDto,
+  PrRequesterOptionDto,
   PrStockCheckInput,
 } from '@sipita/shared';
 import { api } from './client';
@@ -15,6 +16,12 @@ export const purchaseRequestsApi = {
   async list(params: ListParams): Promise<ListResult<PrListItemDto>> {
     const res = await api.get<ApiSuccess<PrListItemDto[]>>(base, { params: cleanParams(params) });
     return { data: res.data.data, meta: res.data.meta! };
+  },
+  async requesters(search?: string): Promise<PrRequesterOptionDto[]> {
+    const res = await api.get<ApiSuccess<PrRequesterOptionDto[]>>(`${base}/requesters`, {
+      params: cleanParams({ search }),
+    });
+    return res.data.data;
   },
   async get(id: string): Promise<PrDto> {
     return (await api.get<ApiSuccess<PrDto>>(`${base}/${id}`)).data.data;

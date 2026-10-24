@@ -3,6 +3,7 @@ import {
   idParamSchema,
   prInputSchema,
   prListQuerySchema,
+  prRequesterQuerySchema,
   prStockCheckSchema,
   reasonSchema,
 } from '@sipita/shared';
@@ -15,6 +16,11 @@ export const purchaseRequestsRouter = Router();
 const byId = validate({ params: idParamSchema });
 
 purchaseRequestsRouter.get('/', validate({ query: prListQuerySchema }), controller.list);
+purchaseRequestsRouter.get(
+  '/requesters',
+  validate({ query: prRequesterQuerySchema }),
+  controller.requesters,
+);
 purchaseRequestsRouter.post('/', validate({ body: prInputSchema }), controller.create);
 purchaseRequestsRouter.get('/:id', byId, controller.get);
 purchaseRequestsRouter.get('/:id/history', byId, controller.history);

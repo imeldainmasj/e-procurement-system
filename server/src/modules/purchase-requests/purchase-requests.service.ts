@@ -14,9 +14,11 @@ import {
   type PrHistoryEntryDto,
   type PrListItemDto,
   type PrPayload,
+  type PrRequesterOptionDto,
   type PrStatus,
   type PrStockCheckInput,
   type prListQuerySchema,
+  type prRequesterQuerySchema,
 } from '@sipita/shared';
 import type { z } from 'zod';
 import { Prisma } from '../../generated/prisma/client.js';
@@ -36,6 +38,7 @@ import { cancelDraftPosForPr } from '../purchase-orders/purchase-orders.service.
 import { transitionPr } from './pr-status.js';
 
 type ListQuery = z.output<typeof prListQuerySchema>;
+type RequesterQuery = z.output<typeof prRequesterQuerySchema>;
 
 const ENTITY = 'PurchaseRequest';
 
@@ -218,6 +221,7 @@ export async function list(q: ListQuery, actor: Actor) {
         ...(q.status && { status: q.status }),
         ...(q.priority && { priority: q.priority }),
         ...(q.divisionId && { divisionId: q.divisionId }),
+        ...(q.requesterId && { requesterId: q.requesterId }),
         ...((q.dateFrom || q.dateTo) && {
           createdAt: {
             ...(q.dateFrom && { gte: dayjs.tz(q.dateFrom).startOf('day').toDate() }),
@@ -253,6 +257,19 @@ export async function list(q: ListQuery, actor: Actor) {
     prisma.purchaseRequest.count({ where }),
   ]);
   return { data: rows.map(toListDto), meta: pageMeta(q, total) };
+}
+
+/** Requesters that appear in the actor's visible PR list, for the list filter dropdown. */
+export async function requesters(q: RequesterQuery, actor: Actor): Promise<PrRequesterOptionDto[]> {
+  return prisma.user.findMany({
+    where: {
+      purchaseRequests: { some: visibilityFilter(actor) },
+      ...searchFilter(q.search, ['name']),
+    },
+    select: { id: true, name: true, division: { select: { id: true, name: true } } },
+    orderBy: { name: 'asc' },
+    take: q.limit,
+  });
 }
 
 /** Loads a PR the actor may see; invisible PRs are reported as not found. */
