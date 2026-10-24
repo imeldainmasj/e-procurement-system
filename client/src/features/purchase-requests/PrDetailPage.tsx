@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { formatRupiah } from '@sipita/shared';
 import { getErrorMessage } from '@/api/client';
+import { SectionCard } from '@/components/ui/SectionCard';
 import { usePurchaseRequest, usePurchaseRequestHistory } from '@/hooks/usePurchaseRequests';
 import { formatDate, formatDateTime } from '@/utils/formatDate';
 import { PrActions } from './components/PrActions';
@@ -62,7 +63,7 @@ export function PrDetailPage() {
           >
             <ArrowLeft className="size-3" /> Daftar pengajuan
           </Link>
-          <h1 className="text-2xl font-bold">{pr.title}</h1>
+          <h1 className="text-lg font-semibold">{pr.title}</h1>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <span className="font-mono text-sm">{pr.number ?? 'Draft (belum bernomor)'}</span>
             <PrStatusBadge status={pr.status} />
@@ -102,96 +103,86 @@ export function PrDetailPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <div className="space-y-4 xl:col-span-2">
-          <div className="card">
-            <div className="card-body p-4">
-              <dl className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                <Info label="Pemohon">{pr.requester.name}</Info>
-                <Info label="Divisi">{pr.division.name}</Info>
-                <Info label="Tanggal Dibutuhkan">{formatDate(pr.neededDate)}</Info>
-                <Info label="Diajukan">
-                  {pr.submittedAt ? formatDateTime(pr.submittedAt) : '-'}
-                </Info>
-              </dl>
-              <div className="mt-4">
-                <div className="text-base-content/60 text-xs">Justifikasi</div>
-                <p className="whitespace-pre-line">{pr.justification}</p>
-              </div>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="space-y-6 xl:col-span-2">
+          <SectionCard title="Detail Pengajuan">
+            <dl className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <Info label="Pemohon">{pr.requester.name}</Info>
+              <Info label="Divisi">{pr.division.name}</Info>
+              <Info label="Tanggal Dibutuhkan">{formatDate(pr.neededDate)}</Info>
+              <Info label="Diajukan">{pr.submittedAt ? formatDateTime(pr.submittedAt) : '-'}</Info>
+            </dl>
+            <div className="mt-4">
+              <div className="text-base-content/60 text-xs">Justifikasi</div>
+              <p className="whitespace-pre-line">{pr.justification}</p>
             </div>
-          </div>
+          </SectionCard>
 
-          <div className="card">
-            <div className="card-body p-4">
-              <h2 className="card-title text-base">Daftar Item</h2>
-              <div className="overflow-x-auto">
-                <table className="table table-sm">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>Item</th>
-                      <th className="text-right">Jumlah</th>
-                      <th className="text-right">Estimasi Harga</th>
-                      <th className="text-right">Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pr.items.map((item, i) => (
-                      <tr key={item.id}>
-                        <td>{i + 1}</td>
-                        <td>
-                          <div className="font-medium">{item.name}</div>
-                          <div className="text-base-content/60 text-xs">
-                            {item.item ? item.item.code : 'Item manual'}
-                            {item.item?.isAsset && ' · Aset'}
-                            {item.notes && ` · ${item.notes}`}
-                          </div>
-                        </td>
-                        <td className="text-right whitespace-nowrap">
-                          {item.qty} {item.unit}
-                        </td>
-                        <td className="text-right whitespace-nowrap">
-                          {formatRupiah(item.estimatedUnitPrice)}
-                        </td>
-                        <td className="text-right whitespace-nowrap">
-                          {formatRupiah(item.subtotal)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <td colSpan={4} className="text-right">
-                        Estimasi Total
+          <SectionCard title="Daftar Item" flush>
+            <div className="overflow-x-auto">
+              <table className="table table-sm">
+                <thead className="bg-base-200/60 text-base-content/60 text-xs uppercase">
+                  <tr>
+                    <th>#</th>
+                    <th>Item</th>
+                    <th className="text-right">Jumlah</th>
+                    <th className="text-right">Estimasi Harga</th>
+                    <th className="text-right">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pr.items.map((item, i) => (
+                    <tr key={item.id}>
+                      <td>{i + 1}</td>
+                      <td>
+                        <div className="font-medium">{item.name}</div>
+                        <div className="text-base-content/60 text-xs">
+                          {item.item ? item.item.code : 'Item manual'}
+                          {item.item?.isAsset && ' · Aset'}
+                          {item.notes && ` · ${item.notes}`}
+                        </div>
                       </td>
-                      <td className="text-right text-base whitespace-nowrap">
-                        {formatRupiah(pr.estimatedTotal)}
+                      <td className="text-right whitespace-nowrap">
+                        {item.qty} {item.unit}
+                      </td>
+                      <td className="text-right whitespace-nowrap">
+                        {formatRupiah(item.estimatedUnitPrice)}
+                      </td>
+                      <td className="text-right whitespace-nowrap">
+                        {formatRupiah(item.subtotal)}
                       </td>
                     </tr>
-                  </tfoot>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={4} className="text-right">
+                      Estimasi Total
+                    </td>
+                    <td className="text-right text-base whitespace-nowrap">
+                      {formatRupiah(pr.estimatedTotal)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
-          </div>
+          </SectionCard>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           <PrProcurementPanel pr={pr} />
           <PrApprovalPanel pr={pr} />
-          <div className="card">
-            <div className="card-body p-4">
-              <h2 className="card-title text-base">Riwayat</h2>
-              {historyQuery.isPending ? (
-                <div className="skeleton h-32 w-full" />
-              ) : historyQuery.isError ? (
-                <div role="alert" className="alert alert-error alert-soft text-sm">
-                  {getErrorMessage(historyQuery.error)}
-                </div>
-              ) : (
-                <PrHistory entries={history} />
-              )}
-            </div>
-          </div>
+          <SectionCard title="Riwayat">
+            {historyQuery.isPending ? (
+              <div className="skeleton h-32 w-full" />
+            ) : historyQuery.isError ? (
+              <div role="alert" className="alert alert-error alert-soft text-sm">
+                {getErrorMessage(historyQuery.error)}
+              </div>
+            ) : (
+              <PrHistory entries={history} />
+            )}
+          </SectionCard>
         </div>
       </div>
     </div>

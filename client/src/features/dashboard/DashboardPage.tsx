@@ -33,6 +33,7 @@ import {
 import { ChartTooltip } from '@/components/charts/ChartTooltip';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { RatingStars } from '@/components/ui/RatingStars';
+import { SectionCard } from '@/components/ui/SectionCard';
 import { StatCard } from '@/components/ui/StatCard';
 import {
   useDashboardSummary,
@@ -63,16 +64,14 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className={cn('card', className)}>
-      <div className="card-header flex-wrap gap-2">
-        <div>
-          <h2 className="card-title">{title}</h2>
-          {description && <p className="text-base-content/60 text-xs">{description}</p>}
-        </div>
-        {actions}
-      </div>
-      <div className="p-4">{children}</div>
-    </section>
+    <SectionCard
+      title={title}
+      {...(description && { description })}
+      {...(actions && { actions })}
+      {...(className && { className })}
+    >
+      {children}
+    </SectionCard>
   );
 }
 

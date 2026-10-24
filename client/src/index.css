@@ -83,9 +83,6 @@
   .card-header {
     @apply border-base-300 flex items-center justify-between border-b px-4 py-3;
   }
-  .card-header .card-title {
-    @apply text-base font-semibold;
-  }
   .stat-label {
     @apply text-base-content/60 text-sm font-medium tracking-wide uppercase;
   }
@@ -102,6 +99,10 @@
  * daisyUI 5 ships its components inside `@layer utilities`, so overrides of its own states
  * must be unlayered to win.
  */
+.card-header .card-title {
+  font-size: 1rem; /* daisyUI's .card-title is 1.125rem */
+  font-weight: 600;
+}
 .menu-velzon {
   /* NavLink's aria-current="page" counts as active in daisyUI; keep it flat, not neutral. */
   --menu-active-bg: transparent;

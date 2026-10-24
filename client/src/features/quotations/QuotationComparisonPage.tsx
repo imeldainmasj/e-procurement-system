@@ -322,7 +322,7 @@ function ComparisonTable({
                     ) : (
                       <button
                         type="button"
-                        className="btn btn-success btn-outline btn-xs"
+                        className="btn btn-soft btn-success btn-xs"
                         onClick={() => onAction({ kind: 'select', quotation: q })}
                       >
                         <Award className="size-3" /> Pilih

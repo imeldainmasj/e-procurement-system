@@ -32,6 +32,7 @@ import { ChartTooltip } from '@/components/charts/ChartTooltip';
 import { DataTable } from '@/components/ui/DataTable';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { SectionCard } from '@/components/ui/SectionCard';
 import { useListParams } from '@/hooks/useListParams';
 import { usePriceHistory, usePriceSummary } from '@/hooks/useProcurement';
 import { formatDate } from '@/utils/formatDate';
@@ -162,44 +163,38 @@ function ItemSummary({ itemId }: { itemId: string }) {
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <div className="card xl:col-span-2">
-          <div className="card-body p-4">
-            <h2 className="card-title text-base">Tren Harga per Vendor (24 bulan)</h2>
-            <PriceTrendChart summary={s} />
-          </div>
-        </div>
-        <div className="card">
-          <div className="card-body p-4">
-            <h2 className="card-title text-base">Per Vendor</h2>
-            <div className="overflow-x-auto">
-              <table className="table table-sm">
-                <thead>
-                  <tr>
-                    <th>Vendor</th>
-                    <th className="text-right">Rata-rata</th>
-                    <th className="text-right">Terakhir</th>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <SectionCard title="Tren Harga per Vendor (24 bulan)" className="xl:col-span-2">
+          <PriceTrendChart summary={s} />
+        </SectionCard>
+        <SectionCard title="Per Vendor" flush>
+          <div className="overflow-x-auto">
+            <table className="table table-sm">
+              <thead className="bg-base-200/60 text-base-content/60 text-xs uppercase">
+                <tr>
+                  <th>Vendor</th>
+                  <th className="text-right">Rata-rata</th>
+                  <th className="text-right">Terakhir</th>
+                </tr>
+              </thead>
+              <tbody>
+                {s.byVendor.map((v) => (
+                  <tr key={v.vendor.id}>
+                    <td>
+                      <div className="font-medium">{v.vendor.name}</div>
+                      <div className="text-base-content/60 text-xs">{v.count} data</div>
+                    </td>
+                    <td className="text-right whitespace-nowrap">{formatRupiah(v.avg)}</td>
+                    <td className="text-right whitespace-nowrap">
+                      {formatRupiah(v.latest)}
+                      <div className="text-base-content/60 text-xs">{formatDate(v.latestAt)}</div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {s.byVendor.map((v) => (
-                    <tr key={v.vendor.id}>
-                      <td>
-                        <div className="font-medium">{v.vendor.name}</div>
-                        <div className="text-base-content/60 text-xs">{v.count} data</div>
-                      </td>
-                      <td className="text-right whitespace-nowrap">{formatRupiah(v.avg)}</td>
-                      <td className="text-right whitespace-nowrap">
-                        {formatRupiah(v.latest)}
-                        <div className="text-base-content/60 text-xs">{formatDate(v.latestAt)}</div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
+        </SectionCard>
       </div>
     </div>
   );

@@ -141,7 +141,7 @@ export function ApprovalsPage() {
                 </button>
                 <button
                   type="button"
-                  className="btn btn-error btn-outline btn-xs"
+                  className="btn btn-soft btn-error btn-xs"
                   onClick={() => decide(row.original, 'reject')}
                 >
                   <X className="size-3" /> Tolak

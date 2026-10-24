@@ -14,6 +14,7 @@ import { Can } from '@/components/auth/Can';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { Modal } from '@/components/ui/Modal';
 import { RatingStars } from '@/components/ui/RatingStars';
+import { SectionCard } from '@/components/ui/SectionCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { usePdfUrl } from '@/hooks/usePdfUrl';
 import { usePoMutations, usePurchaseOrder } from '@/hooks/useProcurement';
@@ -157,7 +158,7 @@ export function PoDetailPage() {
           >
             <ArrowLeft className="size-3" /> Daftar PO
           </Link>
-          <h1 className="text-2xl font-bold">{po.number}</h1>
+          <h1 className="text-lg font-semibold">{po.number}</h1>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <span>{po.vendor.name}</span>
             <StatusBadge status={po.status} label={PO_STATUS_LABELS[po.status]} />
@@ -176,7 +177,7 @@ export function PoDetailPage() {
                 </button>
                 <button
                   type="button"
-                  className="btn btn-outline btn-sm"
+                  className="btn btn-soft btn-primary btn-sm"
                   onClick={() => setDialog('edit')}
                 >
                   <Pencil className="size-4" /> Ubah
@@ -186,7 +187,7 @@ export function PoDetailPage() {
             {ratable && (
               <button
                 type="button"
-                className="btn btn-outline btn-sm"
+                className="btn btn-soft btn-primary btn-sm"
                 onClick={() => setDialog('rate')}
               >
                 <Star className="size-4" /> Beri Rating
@@ -204,7 +205,7 @@ export function PoDetailPage() {
           </Can>
           <button
             type="button"
-            className="btn btn-outline btn-sm"
+            className="btn btn-soft btn-primary btn-sm"
             disabled={!pdf.blob}
             onClick={() => pdf.blob && downloadBlob(pdf.blob, pdfFileName(po.number))}
           >
@@ -230,149 +231,137 @@ export function PoDetailPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-        <div className="space-y-4 xl:col-span-2">
-          <div className="card">
-            <div className="card-body p-4">
-              <dl className="grid grid-cols-2 gap-3">
-                <Info label="Pengajuan">
-                  <Link to={`/pengajuan/${po.pr.id}`} className="link font-mono">
-                    {po.pr.number}
-                  </Link>
-                  <div className="text-sm font-normal">{po.pr.title}</div>
-                </Info>
-                <Info label="Pemohon">
-                  {po.requester.name}
-                  <div className="text-base-content/60 text-xs font-normal">{po.division.name}</div>
-                </Info>
-                <Info label="Tanggal PO">{formatDate(po.orderDate)}</Info>
-                <Info label="Estimasi Tiba">{formatDate(po.expectedDate)}</Info>
-                <Info label="No. Penawaran">
-                  <Link to={`/penawaran/${po.pr.id}`} className="link">
-                    {po.quotation.quoteNumber}
-                  </Link>
-                </Info>
-                <Info label="Diterbitkan">
-                  {po.issuedAt
-                    ? `${formatDateTime(po.issuedAt)} · ${po.issuedBy?.name ?? ''}`
-                    : '-'}
-                </Info>
-              </dl>
-              {po.quotation.selectionJustification && (
-                <p className="text-sm">
-                  <span className="text-base-content/60">Justifikasi pemenang: </span>
-                  {po.quotation.selectionJustification}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-body p-4">
-              <h2 className="card-title text-base">Item</h2>
-              <div className="overflow-x-auto">
-                <table className="table table-sm">
-                  <thead>
-                    <tr>
-                      <th>Item</th>
-                      <th className="text-right">Jumlah</th>
-                      <th className="text-right">Diterima</th>
-                      <th className="text-right">Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {po.items.map((item) => (
-                      <tr key={item.id}>
-                        <td>
-                          <div className="font-medium">{item.name}</div>
-                          <div className="text-base-content/60 text-xs">
-                            {item.item?.code ?? 'Item manual'} · {formatRupiah(item.unitPrice)}/
-                            {item.unit}
-                          </div>
-                        </td>
-                        <td className="text-right whitespace-nowrap">
-                          {item.qty} {item.unit}
-                        </td>
-                        <td className="text-right">{item.receivedQty}</td>
-                        <td className="text-right whitespace-nowrap">
-                          {formatRupiah(item.subtotal)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <td colSpan={3} className="text-right">
-                        Subtotal
-                      </td>
-                      <td className="text-right whitespace-nowrap">{formatRupiah(po.subtotal)}</td>
-                    </tr>
-                    <tr>
-                      <td colSpan={3} className="text-right">
-                        PPN {Number(po.taxPercent).toLocaleString('id-ID')}%
-                      </td>
-                      <td className="text-right whitespace-nowrap">{formatRupiah(po.taxAmount)}</td>
-                    </tr>
-                    <tr>
-                      <td colSpan={3} className="text-right font-bold">
-                        Total
-                      </td>
-                      <td className="text-right text-base font-bold whitespace-nowrap">
-                        {formatRupiah(po.total)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-body gap-2 p-4">
-              <h2 className="card-title text-base">Rating Vendor</h2>
-              {po.rating ? (
-                <>
-                  <RatingStars value={po.rating.average} size="md" />
-                  <div className="text-base-content/70 flex flex-wrap gap-x-4 text-xs">
-                    {ASPECTS.map(([key, label]) => (
-                      <span key={key}>
-                        {label}: {po.rating![key]}
-                      </span>
-                    ))}
-                  </div>
-                  {po.rating.notes && <p className="text-sm">{po.rating.notes}</p>}
-                  <p className="text-base-content/60 text-xs">
-                    {po.rating.ratedBy.name} · {formatDateTime(po.rating.createdAt)}
-                  </p>
-                </>
-              ) : (
-                <p className="text-base-content/60 text-sm">
-                  {ratable
-                    ? 'Barang sudah diterima. Beri rating kinerja vendor untuk PO ini.'
-                    : 'Rating dapat diberikan setelah barang dari PO ini diterima gudang.'}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="card xl:col-span-3">
-          <div className="card-body p-2">
-            {pdf.error ? (
-              <div role="alert" className="alert alert-error">
-                <span>{getErrorMessage(pdf.error)}</span>
-              </div>
-            ) : pdf.url ? (
-              <iframe
-                title={`Pratinjau ${po.number}`}
-                src={pdf.url}
-                className="rounded-box h-[75vh] w-full"
-              />
-            ) : (
-              <div className="skeleton h-[75vh] w-full" />
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
+        <div className="space-y-6 xl:col-span-2">
+          <SectionCard title="Detail PO" bodyClassName="space-y-3">
+            <dl className="grid grid-cols-2 gap-3">
+              <Info label="Pengajuan">
+                <Link to={`/pengajuan/${po.pr.id}`} className="link font-mono">
+                  {po.pr.number}
+                </Link>
+                <div className="text-sm font-normal">{po.pr.title}</div>
+              </Info>
+              <Info label="Pemohon">
+                {po.requester.name}
+                <div className="text-base-content/60 text-xs font-normal">{po.division.name}</div>
+              </Info>
+              <Info label="Tanggal PO">{formatDate(po.orderDate)}</Info>
+              <Info label="Estimasi Tiba">{formatDate(po.expectedDate)}</Info>
+              <Info label="No. Penawaran">
+                <Link to={`/penawaran/${po.pr.id}`} className="link">
+                  {po.quotation.quoteNumber}
+                </Link>
+              </Info>
+              <Info label="Diterbitkan">
+                {po.issuedAt ? `${formatDateTime(po.issuedAt)} · ${po.issuedBy?.name ?? ''}` : '-'}
+              </Info>
+            </dl>
+            {po.quotation.selectionJustification && (
+              <p className="text-sm">
+                <span className="text-base-content/60">Justifikasi pemenang: </span>
+                {po.quotation.selectionJustification}
+              </p>
             )}
-          </div>
+          </SectionCard>
+
+          <SectionCard title="Item" flush>
+            <div className="overflow-x-auto">
+              <table className="table table-sm">
+                <thead className="bg-base-200/60 text-base-content/60 text-xs uppercase">
+                  <tr>
+                    <th>Item</th>
+                    <th className="text-right">Jumlah</th>
+                    <th className="text-right">Diterima</th>
+                    <th className="text-right">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {po.items.map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        <div className="font-medium">{item.name}</div>
+                        <div className="text-base-content/60 text-xs">
+                          {item.item?.code ?? 'Item manual'} · {formatRupiah(item.unitPrice)}/
+                          {item.unit}
+                        </div>
+                      </td>
+                      <td className="text-right whitespace-nowrap">
+                        {item.qty} {item.unit}
+                      </td>
+                      <td className="text-right">{item.receivedQty}</td>
+                      <td className="text-right whitespace-nowrap">
+                        {formatRupiah(item.subtotal)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={3} className="text-right">
+                      Subtotal
+                    </td>
+                    <td className="text-right whitespace-nowrap">{formatRupiah(po.subtotal)}</td>
+                  </tr>
+                  <tr>
+                    <td colSpan={3} className="text-right">
+                      PPN {Number(po.taxPercent).toLocaleString('id-ID')}%
+                    </td>
+                    <td className="text-right whitespace-nowrap">{formatRupiah(po.taxAmount)}</td>
+                  </tr>
+                  <tr>
+                    <td colSpan={3} className="text-right font-bold">
+                      Total
+                    </td>
+                    <td className="text-right text-base font-bold whitespace-nowrap">
+                      {formatRupiah(po.total)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Rating Vendor" bodyClassName="flex flex-col gap-2">
+            {po.rating ? (
+              <>
+                <RatingStars value={po.rating.average} size="md" />
+                <div className="text-base-content/70 flex flex-wrap gap-x-4 text-xs">
+                  {ASPECTS.map(([key, label]) => (
+                    <span key={key}>
+                      {label}: {po.rating![key]}
+                    </span>
+                  ))}
+                </div>
+                {po.rating.notes && <p className="text-sm">{po.rating.notes}</p>}
+                <p className="text-base-content/60 text-xs">
+                  {po.rating.ratedBy.name} · {formatDateTime(po.rating.createdAt)}
+                </p>
+              </>
+            ) : (
+              <p className="text-base-content/60 text-sm">
+                {ratable
+                  ? 'Barang sudah diterima. Beri rating kinerja vendor untuk PO ini.'
+                  : 'Rating dapat diberikan setelah barang dari PO ini diterima gudang.'}
+              </p>
+            )}
+          </SectionCard>
         </div>
+
+        <SectionCard title="Pratinjau Dokumen" className="xl:col-span-3" flush bodyClassName="p-2">
+          {pdf.error ? (
+            <div role="alert" className="alert alert-error">
+              <span>{getErrorMessage(pdf.error)}</span>
+            </div>
+          ) : pdf.url ? (
+            <iframe
+              title={`Pratinjau ${po.number}`}
+              src={pdf.url}
+              className="rounded-box h-[75vh] w-full"
+            />
+          ) : (
+            <div className="skeleton h-[75vh] w-full" />
+          )}
+        </SectionCard>
       </div>
 
       {dialog === 'edit' && <PoFormModal mode="edit" po={po} onClose={close} />}

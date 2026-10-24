@@ -52,7 +52,7 @@ export function PrActions({ pr }: { pr: PrDto }) {
           >
             <Send className="size-4" /> Ajukan
           </button>
-          <Link to={`/pengajuan/${pr.id}/ubah`} className="btn btn-outline btn-sm">
+          <Link to={`/pengajuan/${pr.id}/ubah`} className="btn btn-soft btn-primary btn-sm">
             <Pencil className="size-4" /> Ubah
           </Link>
           <button

@@ -9,6 +9,7 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { SectionCard } from '@/components/ui/SectionCard';
 import { ActiveBadge } from '@/components/ui/StatusBadge';
 import { useDebounce } from '@/hooks/useDebounce';
 import { approvalRuleHooks, useApprovalRules } from '@/hooks/useMasterData';
@@ -27,35 +28,33 @@ function Simulator() {
   });
 
   return (
-    <div className="card">
-      <div className="card-body gap-3 p-4">
-        <h2 className="font-semibold">Simulasi</h2>
-        <p className="text-base-content/70 text-sm">
-          Masukkan estimasi nilai pengajuan untuk melihat jalur approval-nya.
-        </p>
-        <CurrencyInput
-          value={amount}
-          onChange={setAmount}
-          aria-label="Nilai simulasi"
-          placeholder="0"
-        />
-        {debounced !== null &&
-          (result.isPending ? (
-            <span className="loading loading-dots loading-sm" />
-          ) : result.isError ? (
-            <div role="alert" className="alert alert-warning alert-soft text-sm">
-              {getErrorMessage(result.error)}
+    <SectionCard
+      title="Simulasi"
+      description="Masukkan estimasi nilai pengajuan untuk melihat jalur approval-nya."
+      bodyClassName="flex flex-col gap-3"
+    >
+      <CurrencyInput
+        value={amount}
+        onChange={setAmount}
+        aria-label="Nilai simulasi"
+        placeholder="0"
+      />
+      {debounced !== null &&
+        (result.isPending ? (
+          <span className="loading loading-dots loading-sm" />
+        ) : result.isError ? (
+          <div role="alert" className="alert alert-warning alert-soft text-sm">
+            {getErrorMessage(result.error)}
+          </div>
+        ) : (
+          <div className="space-y-1 text-sm">
+            <div>
+              Aturan: <b>{result.data.rule.name}</b>
             </div>
-          ) : (
-            <div className="space-y-1 text-sm">
-              <div>
-                Aturan: <b>{result.data.rule.name}</b>
-              </div>
-              <ApprovalPath levels={result.data.levels} />
-            </div>
-          ))}
-      </div>
-    </div>
+            <ApprovalPath levels={result.data.levels} />
+          </div>
+        ))}
+    </SectionCard>
   );
 }
 

@@ -121,7 +121,7 @@ export function LoginPage() {
                   <button
                     key={username}
                     type="button"
-                    className="btn btn-xs btn-outline"
+                    className="btn btn-xs btn-soft btn-primary"
                     onClick={() => fillDemo(username)}
                   >
                     {label}

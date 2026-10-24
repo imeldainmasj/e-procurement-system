@@ -13,6 +13,7 @@ import { Can } from '@/components/auth/Can';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { RatingStars } from '@/components/ui/RatingStars';
+import { SectionCard } from '@/components/ui/SectionCard';
 import { useVendor, useVendorMutations, useVendorRatings } from '@/hooks/useVendors';
 import { toast } from '@/stores/toastStore';
 import { canPreview, downloadAttachment, previewAttachment } from '@/utils/attachments';
@@ -36,60 +37,49 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function InfoTab({ vendor }: { vendor: VendorDto }) {
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      <div className="card">
-        <div className="card-body p-4">
-          <h3 className="card-title text-base">Profil & Kontak</h3>
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <SectionCard title="Profil & Kontak">
+        <dl className="grid grid-cols-2 gap-3">
+          <Field label="NPWP">{formatNpwp(vendor.npwp)}</Field>
+          <Field label="Kota">{vendor.city}</Field>
+          <div className="col-span-2">
+            <Field label="Alamat">{vendor.address}</Field>
+          </div>
+          <Field label="PIC">{vendor.picName}</Field>
+          <Field label="Telepon">{vendor.phone}</Field>
+          <div className="col-span-2">
+            <Field label="Email">{vendor.email}</Field>
+          </div>
+        </dl>
+      </SectionCard>
+      <div className="space-y-6">
+        <SectionCard title="Rekening Bank">
           <dl className="grid grid-cols-2 gap-3">
-            <Field label="NPWP">{formatNpwp(vendor.npwp)}</Field>
-            <Field label="Kota">{vendor.city}</Field>
+            <Field label="Bank">{vendor.bankName}</Field>
+            <Field label="Nomor Rekening">
+              <span className="font-mono">{vendor.bankAccount}</span>
+            </Field>
             <div className="col-span-2">
-              <Field label="Alamat">{vendor.address}</Field>
-            </div>
-            <Field label="PIC">{vendor.picName}</Field>
-            <Field label="Telepon">{vendor.phone}</Field>
-            <div className="col-span-2">
-              <Field label="Email">{vendor.email}</Field>
+              <Field label="Atas Nama">{vendor.bankAccountName}</Field>
             </div>
           </dl>
-        </div>
-      </div>
-      <div className="space-y-4">
-        <div className="card">
-          <div className="card-body p-4">
-            <h3 className="card-title text-base">Rekening Bank</h3>
-            <dl className="grid grid-cols-2 gap-3">
-              <Field label="Bank">{vendor.bankName}</Field>
-              <Field label="Nomor Rekening">
-                <span className="font-mono">{vendor.bankAccount}</span>
-              </Field>
-              <div className="col-span-2">
-                <Field label="Atas Nama">{vendor.bankAccountName}</Field>
-              </div>
-            </dl>
-          </div>
-        </div>
-        <div className="card">
-          <div className="card-body p-4">
-            <h3 className="card-title text-base">Kategori yang Dipasok</h3>
-            {vendor.categories.length === 0 ? (
-              <p className="text-base-content/60 text-sm">Belum ada kategori.</p>
-            ) : (
-              <div className="flex flex-wrap gap-1">
-                {vendor.categories.map((c) => (
-                  <span key={c.id} className="badge badge-outline">
-                    {c.name}
-                  </span>
-                ))}
-              </div>
-            )}
-            {vendor.notes && (
-              <p className="text-base-content/80 mt-2 text-sm whitespace-pre-line">
-                {vendor.notes}
-              </p>
-            )}
-          </div>
-        </div>
+        </SectionCard>
+        <SectionCard title="Kategori yang Dipasok">
+          {vendor.categories.length === 0 ? (
+            <p className="text-base-content/60 text-sm">Belum ada kategori.</p>
+          ) : (
+            <div className="flex flex-wrap gap-1">
+              {vendor.categories.map((c) => (
+                <span key={c.id} className="badge badge-soft badge-primary">
+                  {c.name}
+                </span>
+              ))}
+            </div>
+          )}
+          {vendor.notes && (
+            <p className="text-base-content/80 mt-2 text-sm whitespace-pre-line">{vendor.notes}</p>
+          )}
+        </SectionCard>
       </div>
     </div>
   );
@@ -103,104 +93,103 @@ function DocumentsTab({ vendor }: { vendor: VendorDto }) {
     fn().catch((err: unknown) => toast.error(getErrorMessage(err)));
 
   return (
-    <div className="card">
-      <div className="card-body p-4">
-        <div className="flex items-center justify-between">
-          <h3 className="card-title text-base">Dokumen Legal</h3>
-          <Can role="PROCUREMENT">
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              onClick={() => setUploading(true)}
-            >
-              <Upload className="size-4" /> Unggah Dokumen
-            </button>
-          </Can>
-        </div>
-        {vendor.documents.length === 0 ? (
-          <EmptyState
-            title="Belum ada dokumen"
-            description="Unggah SIUP, NIB, NPWP, atau akta perusahaan."
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="table table-sm">
-              <thead>
-                <tr>
-                  <th>Jenis</th>
-                  <th>Nomor</th>
-                  <th>Berlaku Sampai</th>
-                  <th>File</th>
-                  <th>Diunggah</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {vendor.documents.map((doc) => (
-                  <tr key={doc.id}>
-                    <td className="font-medium">{VENDOR_DOCUMENT_TYPE_LABELS[doc.type]}</td>
-                    <td>{doc.number ?? '-'}</td>
-                    <td>
-                      <div className="flex flex-col items-start gap-1">
-                        {doc.expiresAt && (
-                          <span className="whitespace-nowrap">{formatDate(doc.expiresAt)}</span>
-                        )}
-                        <ExpiryBadge state={doc.expiryState} />
-                      </div>
-                    </td>
-                    <td>
-                      <div className="max-w-48 truncate text-sm">{doc.attachment.fileName}</div>
-                      <div className="text-base-content/60 text-xs">
-                        {formatFileSize(doc.attachment.size)}
-                      </div>
-                    </td>
-                    <td className="text-xs whitespace-nowrap">
-                      {formatDateTime(doc.createdAt)}
-                      <div className="text-base-content/60">{doc.attachment.uploadedBy?.name}</div>
-                    </td>
-                    <td>
-                      <div className="flex justify-end gap-1">
-                        {canPreview(doc.attachment.mimeType) && (
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-xs"
-                            aria-label="Lihat"
-                            onClick={() => void run(() => previewAttachment(doc.attachment.id))}
-                          >
-                            <Eye className="size-4" />
-                          </button>
-                        )}
+    <SectionCard
+      title="Dokumen Legal"
+      actions={
+        <Can role="PROCUREMENT">
+          <button
+            type="button"
+            className="btn btn-soft btn-secondary btn-sm"
+            onClick={() => setUploading(true)}
+          >
+            <Upload className="size-4" /> Unggah Dokumen
+          </button>
+        </Can>
+      }
+    >
+      {vendor.documents.length === 0 ? (
+        <EmptyState
+          title="Belum ada dokumen"
+          description="Unggah SIUP, NIB, NPWP, atau akta perusahaan."
+        />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="table table-sm">
+            <thead className="bg-base-200/60 text-base-content/60 text-xs uppercase">
+              <tr>
+                <th>Jenis</th>
+                <th>Nomor</th>
+                <th>Berlaku Sampai</th>
+                <th>File</th>
+                <th>Diunggah</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {vendor.documents.map((doc) => (
+                <tr key={doc.id}>
+                  <td className="font-medium">{VENDOR_DOCUMENT_TYPE_LABELS[doc.type]}</td>
+                  <td>{doc.number ?? '-'}</td>
+                  <td>
+                    <div className="flex flex-col items-start gap-1">
+                      {doc.expiresAt && (
+                        <span className="whitespace-nowrap">{formatDate(doc.expiresAt)}</span>
+                      )}
+                      <ExpiryBadge state={doc.expiryState} />
+                    </div>
+                  </td>
+                  <td>
+                    <div className="max-w-48 truncate text-sm">{doc.attachment.fileName}</div>
+                    <div className="text-base-content/60 text-xs">
+                      {formatFileSize(doc.attachment.size)}
+                    </div>
+                  </td>
+                  <td className="text-xs whitespace-nowrap">
+                    {formatDateTime(doc.createdAt)}
+                    <div className="text-base-content/60">{doc.attachment.uploadedBy?.name}</div>
+                  </td>
+                  <td>
+                    <div className="flex justify-end gap-1">
+                      {canPreview(doc.attachment.mimeType) && (
                         <button
                           type="button"
                           className="btn btn-ghost btn-xs"
-                          aria-label="Unduh"
-                          onClick={() =>
-                            void run(() =>
-                              downloadAttachment(doc.attachment.id, doc.attachment.fileName),
-                            )
-                          }
+                          aria-label="Lihat"
+                          onClick={() => void run(() => previewAttachment(doc.attachment.id))}
                         >
-                          <Download className="size-4" />
+                          <Eye className="size-4" />
                         </button>
-                        <Can role="PROCUREMENT">
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-xs text-error"
-                            aria-label="Hapus"
-                            onClick={() => setDeleting(doc)}
-                          >
-                            <Trash2 className="size-4" />
-                          </button>
-                        </Can>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                      )}
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-xs"
+                        aria-label="Unduh"
+                        onClick={() =>
+                          void run(() =>
+                            downloadAttachment(doc.attachment.id, doc.attachment.fileName),
+                          )
+                        }
+                      >
+                        <Download className="size-4" />
+                      </button>
+                      <Can role="PROCUREMENT">
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-xs text-error"
+                          aria-label="Hapus"
+                          onClick={() => setDeleting(doc)}
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </Can>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       {uploading && (
         <DocumentUploadModal vendorId={vendor.id} onClose={() => setUploading(false)} />
       )}
@@ -229,7 +218,7 @@ function DocumentsTab({ vendor }: { vendor: VendorDto }) {
           )
         }
       />
-    </div>
+    </SectionCard>
   );
 }
 
@@ -247,81 +236,79 @@ function RatingsTab({ vendor }: { vendor: VendorDto }) {
   const totalPages = Math.max(1, Math.ceil((ratings.data?.meta.total ?? 0) / 10));
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-      <div className="card">
-        <div className="card-body gap-3 p-4">
-          <h3 className="card-title text-base">Ringkasan</h3>
-          <RatingStars value={summary.overall} count={summary.count} size="md" />
-          <div className="space-y-2">
-            {ASPECTS.map(([key, label]) => (
-              <div key={key} className="flex items-center justify-between gap-2 text-sm">
-                <span className="text-base-content/70">{label}</span>
-                <RatingStars value={summary[key]} />
-              </div>
-            ))}
-          </div>
-          <p className="text-base-content/60 text-xs">
-            Rating diberikan satu kali per Purchase Order setelah barang diterima.
-          </p>
-        </div>
-      </div>
-      <div className="card lg:col-span-2">
-        <div className="card-body p-4">
-          <h3 className="card-title text-base">Riwayat Rating</h3>
-          {ratings.isPending ? (
-            <div className="skeleton h-24 w-full" />
-          ) : ratings.data?.data.length === 0 ? (
-            <EmptyState
-              title="Belum ada rating"
-              description="Rating akan muncul setelah PO dengan vendor ini selesai diterima (modul PO & Penerimaan)."
-            />
-          ) : (
-            <ul className="divide-base-200 divide-y">
-              {ratings.data?.data.map((r) => (
-                <li key={r.id} className="py-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <RatingStars value={r.average} />
-                    <span className="text-base-content/60 text-xs">
-                      {r.ratedBy.name} · {formatDateTime(r.createdAt)}
-                    </span>
-                  </div>
-                  <div className="text-base-content/70 mt-1 flex flex-wrap gap-x-4 text-xs">
-                    {ASPECTS.map(([key, label]) => (
-                      <span key={key}>
-                        {label}: {r[key]}
-                      </span>
-                    ))}
-                  </div>
-                  {r.notes && <p className="mt-1 text-sm">{r.notes}</p>}
-                </li>
-              ))}
-            </ul>
-          )}
-          {totalPages > 1 && (
-            <div className="join self-end">
-              <button
-                type="button"
-                className="join-item btn btn-sm"
-                disabled={page <= 1}
-                onClick={() => setPage(page - 1)}
-              >
-                ‹
-              </button>
-              <span className="join-item btn btn-sm pointer-events-none">
-                {page} / {totalPages}
-              </span>
-              <button
-                type="button"
-                className="join-item btn btn-sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage(page + 1)}
-              >
-                ›
-              </button>
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <SectionCard title="Ringkasan" bodyClassName="flex flex-col gap-3">
+        <RatingStars value={summary.overall} count={summary.count} size="md" />
+        <div className="space-y-2">
+          {ASPECTS.map(([key, label]) => (
+            <div key={key} className="flex items-center justify-between gap-2 text-sm">
+              <span className="text-base-content/70">{label}</span>
+              <RatingStars value={summary[key]} />
             </div>
-          )}
+          ))}
         </div>
-      </div>
+        <p className="text-base-content/60 text-xs">
+          Rating diberikan satu kali per Purchase Order setelah barang diterima.
+        </p>
+      </SectionCard>
+      <SectionCard
+        title="Riwayat Rating"
+        className="lg:col-span-2"
+        bodyClassName="flex flex-col gap-3"
+      >
+        {ratings.isPending ? (
+          <div className="skeleton h-24 w-full" />
+        ) : ratings.data?.data.length === 0 ? (
+          <EmptyState
+            title="Belum ada rating"
+            description="Rating akan muncul setelah PO dengan vendor ini selesai diterima (modul PO & Penerimaan)."
+          />
+        ) : (
+          <ul className="divide-base-200 divide-y">
+            {ratings.data?.data.map((r) => (
+              <li key={r.id} className="py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <RatingStars value={r.average} />
+                  <span className="text-base-content/60 text-xs">
+                    {r.ratedBy.name} · {formatDateTime(r.createdAt)}
+                  </span>
+                </div>
+                <div className="text-base-content/70 mt-1 flex flex-wrap gap-x-4 text-xs">
+                  {ASPECTS.map(([key, label]) => (
+                    <span key={key}>
+                      {label}: {r[key]}
+                    </span>
+                  ))}
+                </div>
+                {r.notes && <p className="mt-1 text-sm">{r.notes}</p>}
+              </li>
+            ))}
+          </ul>
+        )}
+        {totalPages > 1 && (
+          <div className="join self-end">
+            <button
+              type="button"
+              className="join-item btn btn-sm"
+              disabled={page <= 1}
+              onClick={() => setPage(page - 1)}
+            >
+              ‹
+            </button>
+            <span className="join-item btn btn-sm pointer-events-none">
+              {page} / {totalPages}
+            </span>
+            <button
+              type="button"
+              className="join-item btn btn-sm"
+              disabled={page >= totalPages}
+              onClick={() => setPage(page + 1)}
+            >
+              ›
+            </button>
+          </div>
+        )}
+      </SectionCard>
     </div>
   );
 }
@@ -349,7 +336,7 @@ export function VendorDetailPage() {
   const { expired, expiring } = vendor.documentAlerts;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link
@@ -358,7 +345,7 @@ export function VendorDetailPage() {
           >
             <ArrowLeft className="size-3" /> Daftar vendor
           </Link>
-          <h1 className="text-2xl font-bold">{vendor.name}</h1>
+          <h1 className="text-lg font-semibold">{vendor.name}</h1>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <span className="font-mono text-sm">{vendor.code}</span>
             <VendorStatusBadge status={vendor.status} />
@@ -369,14 +356,14 @@ export function VendorDetailPage() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="btn btn-outline btn-sm"
+              className="btn btn-soft btn-primary btn-sm"
               onClick={() => setDialog('edit')}
             >
               <Pencil className="size-4" /> Ubah
             </button>
             <button
               type="button"
-              className="btn btn-outline btn-sm"
+              className="btn btn-soft btn-primary btn-sm"
               onClick={() => setDialog('status')}
             >
               <ShieldAlert className="size-4" /> Ubah Status

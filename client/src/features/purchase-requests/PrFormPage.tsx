@@ -20,6 +20,7 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { FormError } from '@/components/ui/FormError';
 import { FormField } from '@/components/ui/FormField';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { SectionCard } from '@/components/ui/SectionCard';
 import { useDebounce } from '@/hooks/useDebounce';
 import { usePrMutations, usePurchaseRequest } from '@/hooks/usePurchaseRequests';
 import { toast } from '@/stores/toastStore';
@@ -197,25 +198,22 @@ function PrForm({ pr }: { pr: PrDto | undefined }) {
           </div>
         </div>
 
-        <div className="card">
-          <div className="card-body gap-4 p-4">
-            <h2 className="card-title text-base">Daftar Item</h2>
-            <PrItemsEditor
-              control={control}
-              register={register}
-              setValue={setValue}
-              errors={errors}
-            />
-            <div className="border-base-300 flex flex-wrap items-center justify-between gap-4 border-t pt-4">
-              <span className="text-base-content/70 text-sm">Estimasi total</span>
-              <span className="text-xl font-bold">{formatRupiah(total)}</span>
-            </div>
-            <ApprovalPreview total={total} />
+        <SectionCard title="Daftar Item" bodyClassName="flex flex-col gap-4">
+          <PrItemsEditor
+            control={control}
+            register={register}
+            setValue={setValue}
+            errors={errors}
+          />
+          <div className="border-base-300 flex flex-wrap items-center justify-between gap-4 border-t pt-4">
+            <span className="text-base-content/70 text-sm">Estimasi total</span>
+            <span className="text-xl font-bold">{formatRupiah(total)}</span>
           </div>
-        </div>
+          <ApprovalPreview total={total} />
+        </SectionCard>
 
         <div className="flex flex-wrap justify-end gap-2">
-          <button type="submit" className="btn btn-outline" disabled={saving}>
+          <button type="submit" className="btn btn-soft btn-primary" disabled={saving}>
             <Save className="size-4" /> Simpan Draft
           </button>
           <button
