@@ -405,7 +405,7 @@ npm run lint
 npm run test
 
 # Server
-npm run dev -w server                     # tsx watch src/server.ts
+npm run dev -w server                     # node --watch + tsx loader
 npm run db:migrate -w server              # prisma migrate dev
 npm run db:seed -w server                 # prisma db seed
 npm run db:studio -w server               # prisma studio
