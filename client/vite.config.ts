@@ -16,6 +16,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Fail instead of silently moving to 5174+: the API only allows CLIENT_URL (CORS).
+    strictPort: true,
   },
   test: {
     environment: 'jsdom',

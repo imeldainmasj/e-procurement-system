@@ -5,7 +5,17 @@ import { prisma } from './lib/prisma.js';
 
 const app = createApp();
 
-const server = app.listen(env.PORT, () => {
+// Express 5 passes listen errors (e.g. EADDRINUSE) to this callback.
+const server = app.listen(env.PORT, (error?: Error) => {
+  if (error) {
+    const inUse = (error as NodeJS.ErrnoException).code === 'EADDRINUSE';
+    logger.fatal(
+      inUse
+        ? `Port ${env.PORT} sudah dipakai proses lain. Hentikan server lama (mis. npm run dev yang masih jalan) lalu coba lagi.`
+        : `Server gagal dijalankan: ${error.message}`,
+    );
+    process.exit(1);
+  }
   logger.info(`SIPITA API berjalan di http://localhost:${env.PORT}/api/v1 (${env.NODE_ENV})`);
 });
 
