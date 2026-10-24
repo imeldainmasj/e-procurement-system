@@ -9,6 +9,8 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { writeAuditLog } from '../../lib/audit.js';
 import { prisma, type TxClient } from '../../lib/prisma.js';
 import type { Actor } from '../../utils/actor.js';
+// Circular with works.service (it reads the settings); safe because both only call at runtime.
+import { refreshAllWorkIssues } from '../works/works.service.js';
 
 const ENTITY = 'AppSetting';
 
@@ -41,5 +43,8 @@ export async function updateSettings(input: SettingsDto, actor: Actor): Promise<
       after: input,
     });
   });
+  // Cached data issues (e.g. method vs. Tender threshold) depend on the thresholds.
+  // pvpRequired of existing works is kept: it reflects the rules when the work was recorded.
+  if (before.TENDER_MIN_AMOUNT !== input.TENDER_MIN_AMOUNT) await refreshAllWorkIssues();
   return getSettings();
 }

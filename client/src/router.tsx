@@ -8,14 +8,20 @@ import { LoginPage } from '@/features/auth/LoginPage';
 import { NotFoundPage } from '@/features/errors/NotFoundPage';
 import { ComingSoonPage } from '@/features/placeholder/ComingSoonPage';
 import { GeneralSettingsPage } from '@/features/settings/general/GeneralSettingsPage';
+import { MilestoneTemplatesPage } from '@/features/settings/milestone-templates/MilestoneTemplatesPage';
 import { OrganizationPage } from '@/features/settings/organization/OrganizationPage';
 import { UsersPage } from '@/features/settings/users/UsersPage';
 import { VendorDetailPage } from '@/features/vendors/VendorDetailPage';
 import { VendorListPage } from '@/features/vendors/VendorListPage';
+import { WorkDetailPage } from '@/features/works/WorkDetailPage';
+import { WorkListPage } from '@/features/works/WorkListPage';
 
 /** Pages built so far, keyed by menu path. Other menu routes show a placeholder. */
 const PAGES: Record<string, ReactNode> = {
+  '/pekerjaan/saya': <WorkListPage mine />,
+  '/pekerjaan': <WorkListPage />,
   '/vendor': <VendorListPage />,
+  '/pengaturan/template-milestone': <MilestoneTemplatesPage />,
   '/pengaturan/pengguna': <UsersPage />,
   '/pengaturan/organisasi': <OrganizationPage />,
   '/pengaturan/umum': <GeneralSettingsPage />,
@@ -49,6 +55,14 @@ export const router = createBrowserRouter([
         element: <AppLayout />,
         children: [
           ...moduleRoutes,
+          {
+            path: 'pekerjaan/:id',
+            element: (
+              <RequireAccess access={{ feature: 'WORK' }}>
+                <WorkDetailPage />
+              </RequireAccess>
+            ),
+          },
           {
             path: 'vendor/:id',
             element: (

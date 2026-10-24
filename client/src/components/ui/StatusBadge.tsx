@@ -1,59 +1,78 @@
+import {
+  AGREEMENT_STATUS_LABELS,
+  IMPORT_STATUS_LABELS,
+  MILESTONE_STATUS_LABELS,
+  PVP_STATUS_LABELS,
+  WORK_STATUS_LABELS,
+  type AgreementStatus,
+  type ImportStatus,
+  type MilestoneStatus,
+  type PvpStatus,
+  type WorkStatus,
+} from '@sipita/shared';
 import { cn } from '@/utils/cn';
 
 /**
- * Colour + Indonesian label per status (CLAUDE.md §8), rendered as Velzon-style soft badges.
- * Unknown statuses fall back to a ghost badge.
+ * Colours per status (CLAUDE.md §9), rendered as Velzon-style soft badges:
+ * not started → ghost, in progress / on hold / expiring → warning, done / active /
+ * completed → success, expired / cancelled / rejected → error, N/A → dimmed ghost.
  */
-const STATUS_MAP: Record<string, { label: string; className: string }> = {
-  DRAFT: { label: 'Draft', className: 'badge-ghost' },
-  SUBMITTED: { label: 'Diajukan', className: 'badge-warning' },
-  PENDING: { label: 'Menunggu', className: 'badge-warning' },
-  PENDING_APPROVAL: { label: 'Menunggu Approval', className: 'badge-warning' },
-  WAITING: { label: 'Antre', className: 'badge-ghost' },
-  SKIPPED: { label: 'Dilewati', className: 'badge-ghost' },
-  STOCK_CHECK: { label: 'Cek Stok', className: 'badge-warning' },
-  APPROVED: { label: 'Disetujui', className: 'badge-success' },
-  ACTIVE: { label: 'Aktif', className: 'badge-success' },
-  AVAILABLE: { label: 'Tersedia', className: 'badge-success' },
-  REJECTED: { label: 'Ditolak', className: 'badge-error' },
-  EXPIRED: { label: 'Kedaluwarsa', className: 'badge-error' },
-  BROKEN: { label: 'Rusak', className: 'badge-error' },
-  BLACKLISTED: { label: 'Blacklist', className: 'badge-error' },
-  UNDER_REVIEW: { label: 'Dalam Review', className: 'badge-warning' },
-  PO_ISSUED: { label: 'PO Terbit', className: 'badge-info' },
-  ISSUED: { label: 'Terbit', className: 'badge-info' },
-  IN_USE: { label: 'Dipakai', className: 'badge-info' },
-  COMPLETED: { label: 'Selesai', className: 'badge-primary' },
-  FULFILLED_FROM_STOCK: { label: 'Dipenuhi dari Stok', className: 'badge-primary' },
-  QUOTATION: { label: 'Penawaran', className: 'badge-info' },
-  PARTIALLY_RECEIVED: { label: 'Diterima Sebagian', className: 'badge-info' },
-  RECEIVED: { label: 'Diterima', className: 'badge-info' },
-  INACTIVE: { label: 'Nonaktif', className: 'badge-ghost' },
-  CLOSED: { label: 'Ditutup', className: 'badge-primary' },
-  CANCELLED: { label: 'Dibatalkan', className: 'badge-ghost' },
+const TONE: Record<string, string> = {
+  NOT_STARTED: 'badge-ghost',
+  IN_PROGRESS: 'badge-warning',
+  DONE: 'badge-success',
+  NOT_APPLICABLE: 'badge-ghost opacity-60',
+  ACTIVE: 'badge-success',
+  ON_HOLD: 'badge-warning',
+  COMPLETED: 'badge-success',
+  CANCELLED: 'badge-error',
+  EXPIRING_SOON: 'badge-warning',
+  EXPIRED: 'badge-error',
+  TERMINATED: 'badge-error',
+  PENDING: 'badge-warning',
+  APPROVED: 'badge-success',
+  REJECTED: 'badge-error',
+  PREVIEW: 'badge-warning',
+  COMMITTED: 'badge-success',
+  ROLLED_BACK: 'badge-ghost',
+  FAILED: 'badge-error',
+  INACTIVE: 'badge-ghost',
+};
+
+type Kind = 'work' | 'milestone' | 'agreement' | 'pvp' | 'import';
+
+const LABELS: Record<Kind, Record<string, string>> = {
+  work: WORK_STATUS_LABELS satisfies Record<WorkStatus, string>,
+  milestone: MILESTONE_STATUS_LABELS satisfies Record<MilestoneStatus, string>,
+  agreement: AGREEMENT_STATUS_LABELS satisfies Record<AgreementStatus, string>,
+  pvp: PVP_STATUS_LABELS satisfies Record<PvpStatus, string>,
+  import: IMPORT_STATUS_LABELS satisfies Record<ImportStatus, string>,
 };
 
 interface StatusBadgeProps {
   status: string;
+  /** Which label set to use; statuses such as ACTIVE mean different things per entity. */
+  kind?: Kind;
   label?: string;
   className?: string;
 }
 
-export function StatusBadge({ status, label, className }: StatusBadgeProps) {
-  const entry = STATUS_MAP[status];
+export function StatusBadge({ status, kind, label, className }: StatusBadgeProps) {
   return (
     <span
       className={cn(
         'badge badge-sm badge-soft whitespace-nowrap',
-        entry?.className ?? 'badge-ghost',
+        TONE[status] ?? 'badge-ghost',
         className,
       )}
     >
-      {label ?? entry?.label ?? status}
+      {label ?? (kind && LABELS[kind][status]) ?? status}
     </span>
   );
 }
 
 export function ActiveBadge({ active }: { active: boolean }) {
-  return <StatusBadge status={active ? 'ACTIVE' : 'INACTIVE'} />;
+  return (
+    <StatusBadge status={active ? 'ACTIVE' : 'INACTIVE'} label={active ? 'Aktif' : 'Nonaktif'} />
+  );
 }

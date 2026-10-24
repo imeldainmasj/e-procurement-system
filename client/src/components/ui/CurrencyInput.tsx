@@ -10,13 +10,15 @@ interface CurrencyInputProps extends Omit<
   value: number | null | undefined;
   onChange: (value: number | null) => void;
   error?: boolean;
+  /** ISO currency code shown as the prefix; IDR shows "Rp". */
+  currency?: string;
 }
 
-/** Shows "Rp 1.250.000" while exposing a plain number (whole rupiah) as the value. */
+/** Shows "Rp 1.250.000" (or "USD 20.000") while exposing a plain number (whole units) as the value. */
 export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
-  ({ value, onChange, error, className, ...props }, ref) => (
+  ({ value, onChange, error, currency = 'IDR', className, ...props }, ref) => (
     <label className={cn('input w-full', error && 'input-error', className)}>
-      <span className="text-base-content/60">Rp</span>
+      <span className="text-base-content/60">{currency === 'IDR' ? 'Rp' : currency}</span>
       <input
         ref={ref}
         type="text"

@@ -1,4 +1,11 @@
-import { FEATURES, type Feature, type JobLevel, type PermissionFlags } from '@sipita/shared';
+import {
+  DEFAULT_MILESTONE_TEMPLATES,
+  FEATURES,
+  PROCUREMENT_METHODS,
+  type Feature,
+  type JobLevel,
+  type PermissionFlags,
+} from '@sipita/shared';
 import { signAccessToken } from '../lib/jwt.js';
 import { hashPassword } from '../lib/password.js';
 import { prisma } from '../lib/prisma.js';
@@ -69,4 +76,13 @@ export function authHeader(user: { id: string; jobLevel: JobLevel; isAdmin: bool
 export async function createAdmin() {
   const admin = await createTestUser({ isAdmin: true });
   return { admin, headers: authHeader(admin) };
+}
+
+/** Default milestone templates (CLAUDE.md §5.4), as the seed creates them. */
+export async function seedMilestoneTemplates(): Promise<void> {
+  await prisma.milestoneTemplate.createMany({
+    data: PROCUREMENT_METHODS.flatMap((method) =>
+      DEFAULT_MILESTONE_TEMPLATES[method].map((t) => ({ method, ...t })),
+    ),
+  });
 }

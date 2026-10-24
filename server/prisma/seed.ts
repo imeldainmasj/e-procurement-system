@@ -12,12 +12,12 @@ import {
 import type { Prisma } from '../src/generated/prisma/client.js';
 import { hashPassword } from '../src/lib/password.js';
 import { prisma } from '../src/lib/prisma.js';
+import { seedWorks } from './seed-works.js';
 
 /**
  * Idempotent seed (CLAUDE.md §14): every record is upserted on its business key, so the
- * seed can be re-run on a populated database. Works, documents and progress logs are
- * seeded once the work and document services exist (stages 4–5), so seeded data goes
- * through the same milestone and validation logic as the application.
+ * seed can be re-run on a populated database. Sample works are only added to an empty
+ * works table (see seed-works.ts).
  */
 
 const DEFAULT_PASSWORD = 'Password123!';
@@ -334,11 +334,13 @@ async function main(): Promise<void> {
   await seedSettings();
   const templates = await seedMilestoneTemplates();
   await seedVendors();
+  const works = await seedWorks();
 
   console.log(
     `✅ Seed selesai: ${directorates.length} direktorat, ${divisions.length} divisi, ` +
       `${departments.length} departemen, ${users.length} user, ${SETTING_KEYS.length} pengaturan, ` +
-      `${templates} template milestone baru, ${vendors.length} vendor.`,
+      `${templates} template milestone baru, ${vendors.length} vendor, ` +
+      (works > 0 ? `${works} pekerjaan contoh.` : 'pekerjaan contoh dilewati (data sudah ada).'),
   );
   console.log(`   Login: username (mis. admin, hendra.wijaya, andi.pratama) / ${DEFAULT_PASSWORD}`);
 }

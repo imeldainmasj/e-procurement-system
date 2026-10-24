@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import { authenticate } from './middleware/auth.js';
+import { agreementsRouter } from './modules/agreements/agreements.routes.js';
 import { attachmentsRouter } from './modules/attachments/attachments.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { healthRouter } from './modules/health/health.routes.js';
+import { milestoneTemplatesRouter } from './modules/milestone-templates/milestone-templates.routes.js';
 import { notificationsRouter } from './modules/notifications/notifications.routes.js';
 import {
   departmentsRouter,
@@ -12,6 +14,7 @@ import {
 import { settingsRouter } from './modules/settings/settings.routes.js';
 import { usersRouter } from './modules/users/users.routes.js';
 import { vendorsRouter } from './modules/vendors/vendors.routes.js';
+import { procurementRulesRouter, worksRouter } from './modules/works/works.routes.js';
 
 export const apiRouter = Router();
 
@@ -28,3 +31,7 @@ apiRouter.use('/vendors', authenticate, vendorsRouter);
 apiRouter.use('/notifications', authenticate, notificationsRouter);
 apiRouter.use('/attachments', authenticate, attachmentsRouter);
 apiRouter.use('/settings', authenticate, settingsRouter);
+apiRouter.use('/milestone-templates', authenticate, milestoneTemplatesRouter);
+apiRouter.use('/works', authenticate, worksRouter);
+apiRouter.use('/agreements', authenticate, agreementsRouter);
+apiRouter.use('/procurement-rules', authenticate, procurementRulesRouter);

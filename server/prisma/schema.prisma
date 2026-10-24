@@ -185,18 +185,18 @@ model AppSetting {
 }
 
 model AuditLog {
-  id        String      @id @default(uuid()) @db.Uuid
-  userId    String?     @map("user_id") @db.Uuid
-  action    String
-  entity    String
-  entityId  String      @map("entity_id")
-  before    Json?
-  after     Json?
-  source    AuditSource @default(APP)
+  id            String      @id @default(uuid()) @db.Uuid
+  userId        String?     @map("user_id") @db.Uuid
+  action        String
+  entity        String
+  entityId      String      @map("entity_id")
+  before        Json?
+  after         Json?
+  source        AuditSource @default(APP)
   /// Set when source = IMPORT, so a rollback can find the rows it touched.
-  importBatchId String? @map("import_batch_id") @db.Uuid
-  ip        String?
-  createdAt DateTime    @default(now()) @map("created_at")
+  importBatchId String?     @map("import_batch_id") @db.Uuid
+  ip            String?
+  createdAt     DateTime    @default(now()) @map("created_at")
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -422,6 +422,11 @@ model Work {
   pkResult               PkResult?         @map("pk_result")
   status                 WorkStatus        @default(ACTIVE)
   lastUpdatedAt          DateTime          @default(now()) @map("last_updated_at")
+  /// Cached `getDataIssues` result ({ code, message }[]), refreshed on every change to the
+  /// work, its milestones or documents, and when thresholds change. Staleness is not
+  /// cached; it is derived from lastUpdatedAt at query time.
+  dataIssues             Json              @default("[]") @map("data_issues")
+  hasDataIssues          Boolean           @default(false) @map("has_data_issues")
   notes                  String?
   createdById            String?           @map("created_by_id") @db.Uuid
   updatedById            String?           @map("updated_by_id") @db.Uuid
@@ -430,18 +435,18 @@ model Work {
   updatedAt              DateTime          @updatedAt @map("updated_at")
   deletedAt              DateTime?         @map("deleted_at")
 
-  pic                  User          @relation("WorkPic", fields: [picId], references: [id])
-  requesterDirectorate Directorate?  @relation(fields: [requesterDirectorateId], references: [id], onDelete: SetNull)
-  vendor               Vendor?       @relation(fields: [vendorId], references: [id], onDelete: SetNull)
-  sourceAgreement      Agreement?    @relation("SourceAgreement", fields: [sourceAgreementId], references: [id], onDelete: SetNull)
-  importBatch          ImportBatch?  @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  pic                  User            @relation("WorkPic", fields: [picId], references: [id])
+  requesterDirectorate Directorate?    @relation(fields: [requesterDirectorateId], references: [id], onDelete: SetNull)
+  vendor               Vendor?         @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  sourceAgreement      Agreement?      @relation("SourceAgreement", fields: [sourceAgreementId], references: [id], onDelete: SetNull)
+  importBatch          ImportBatch?    @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
   milestones           WorkMilestone[]
   updates              WorkUpdate[]
   memos                Memo[]
   rfq                  Rfq?
   pvpForum             PvpForum?
   purchaseOrders       PurchaseOrder[]
-  agreements           Agreement[]   @relation("WorkAgreements")
+  agreements           Agreement[]     @relation("WorkAgreements")
   addendums            Addendum[]
 
   @@index([picId])
