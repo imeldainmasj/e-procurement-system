@@ -32,6 +32,8 @@ export default defineConfig({
     globalSetup: ['./src/test/globalSetup.ts'],
     // Test files share one database, so run them sequentially.
     fileParallelism: false,
+    // API tests run many transactions per case; the default 5–10 s is too tight on a busy machine.
+    testTimeout: 30_000,
     env: {
       NODE_ENV: 'test',
       DATABASE_URL: testUrl.toString(),

@@ -1,12 +1,15 @@
 import type {
+  AgreementStatus,
   DataIssue,
+  MemoType,
   MilestoneStatus,
+  PkResult,
   MilestoneType,
   ProcurementMethod,
   SettingsDto,
   WorkStatus,
 } from '@sipita/shared';
-import { MILESTONE_TYPE_LABELS } from '@sipita/shared';
+import { memoMilestone, MILESTONE_TYPE_LABELS } from '@sipita/shared';
 
 /**
  * Pure procurement rules (CLAUDE.md §5). No database access: callers pass the settings
@@ -127,6 +130,8 @@ export interface DataIssueInput {
   pkResult: string | null;
   lastUpdatedAt: Date;
   milestones: readonly MilestoneLike[];
+  /** From `documentCompletions`; when given, DONE milestones without a document are flagged. */
+  completions?: DocumentCompletions;
 }
 
 const label = (type: MilestoneType) => MILESTONE_TYPE_LABELS[type];
@@ -189,6 +194,21 @@ export function getDataIssues(work: DataIssueInput, settings: RuleSettings): Dat
     }
   }
 
+  if (work.completions) {
+    for (const m of work.milestones) {
+      if (m.status !== 'DONE' || !DOCUMENT_MILESTONES.has(m.type) || work.completions[m.type])
+        continue;
+      issues.push(
+        m.type === 'PVP'
+          ? {
+              code: 'PVP_INSUFFICIENT_APPROVALS',
+              message: 'PVP tercatat selesai tanpa approval direktur yang cukup',
+            }
+          : { code: 'DOCUMENT_MISSING', message: `${label(m.type)} selesai tanpa dokumen` },
+      );
+    }
+  }
+
   if (work.status === 'COMPLETED') {
     const last = finalMilestone(work.milestones);
     if (last && last.status !== 'DONE') {
@@ -214,4 +234,107 @@ export function isStale(
 
 export function staleCutoff(settings: RuleSettings, now: Date = new Date()): Date {
   return new Date(now.getTime() - settings.STALE_WORK_DAYS * 86_400_000);
+}
+
+// ─── Documents ↔ milestones (§6 Sinkronisasi) ────────────────────────────────
+
+/** Milestones completed by recording a document; OFFICIAL_APPROVAL is set by hand. */
+export const DOCUMENT_MILESTONES: ReadonlySet<MilestoneType> = new Set<MilestoneType>([
+  'MEMO',
+  'RFQ',
+  'PVP',
+  'MOA_METHOD',
+  'MOA_COST',
+  'LOA',
+  'PO',
+  'AGREEMENT',
+  'AGREEMENT_OR_ADDENDUM',
+]);
+
+export { memoMilestone } from '@sipita/shared';
+
+export interface DocumentSnapshot {
+  memos: readonly { memoType: MemoType; memoDate: Date }[];
+  rfq: { recordedAt: Date; loaNo: string | null; loaDate: Date | null } | null;
+  pvp: {
+    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    approvals: readonly { decision: 'APPROVED' | 'REJECTED'; approvalDate: Date }[];
+  } | null;
+  purchaseOrders: readonly { poDate: Date }[];
+  /** Agreements produced by the work. */
+  agreements: readonly { periodStart: Date; recordedAt: Date }[];
+  /** Addendums produced by the work (PK). */
+  addendums: readonly { addendumDate: Date }[];
+}
+
+export type DocumentCompletions = Partial<Record<MilestoneType, Date>>;
+
+const earliest = (dates: readonly Date[]) =>
+  dates.length === 0 ? undefined : new Date(Math.min(...dates.map((d) => d.getTime())));
+const latest = (dates: readonly Date[]) =>
+  dates.length === 0 ? undefined : new Date(Math.max(...dates.map((d) => d.getTime())));
+
+/**
+ * For each document-backed milestone: the date its document completes it, or nothing when
+ * the document is missing. RFQ completes when recorded (user decision 2026-10-25); PVP when
+ * APPROVED with enough director approvals; an agreement on its start or recording date,
+ * whichever is earlier.
+ */
+export function documentCompletions(
+  method: ProcurementMethod,
+  pkResult: PkResult | null,
+  docs: DocumentSnapshot,
+  minDirectorApprovals: number,
+): DocumentCompletions {
+  const result: DocumentCompletions = {};
+  const memoDates = (type: MilestoneType) =>
+    docs.memos.filter((m) => memoMilestone(m.memoType, method) === type).map((m) => m.memoDate);
+
+  for (const type of ['MEMO', 'MOA_METHOD', 'MOA_COST'] as const) {
+    const date = earliest(memoDates(type));
+    if (date) result[type] = date;
+  }
+  if (docs.rfq) {
+    result.RFQ = docs.rfq.recordedAt;
+    if (docs.rfq.loaNo && docs.rfq.loaDate) result.LOA = docs.rfq.loaDate;
+  }
+  if (docs.pvp?.status === 'APPROVED') {
+    const approved = docs.pvp.approvals.filter((a) => a.decision === 'APPROVED');
+    if (approved.length >= minDirectorApprovals) {
+      result.PVP = latest(approved.map((a) => a.approvalDate));
+    }
+  }
+  const po = earliest(docs.purchaseOrders.map((p) => p.poDate));
+  if (po) result.PO = po;
+
+  const agreement = earliest(docs.agreements.map((a) => earliest([a.periodStart, a.recordedAt])!));
+  if (method === 'SPECIAL_EXTENSION') {
+    const final =
+      pkResult === 'NEW_AGREEMENT'
+        ? agreement
+        : pkResult === 'ADDENDUM'
+          ? earliest(docs.addendums.map((a) => a.addendumDate))
+          : undefined;
+    if (final) result.AGREEMENT_OR_ADDENDUM = final;
+  } else if (agreement) {
+    result.AGREEMENT = agreement;
+  }
+  return result;
+}
+
+/**
+ * Status from the effective end date (YYYY-MM-DD, including addendum extensions): EXPIRED
+ * after it, EXPIRING_SOON within the largest reminder window, ACTIVE otherwise. A manual
+ * TERMINATED is kept.
+ */
+export function agreementStatus(
+  effectiveEnd: string,
+  today: string,
+  reminderDays: readonly number[],
+  current?: AgreementStatus,
+): AgreementStatus {
+  if (current === 'TERMINATED') return 'TERMINATED';
+  if (effectiveEnd < today) return 'EXPIRED';
+  const days = (Date.parse(effectiveEnd) - Date.parse(today)) / 86_400_000;
+  return days <= Math.max(0, ...reminderDays) ? 'EXPIRING_SOON' : 'ACTIVE';
 }

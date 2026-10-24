@@ -7,7 +7,7 @@ import {
   Trash2,
   UserRoundCog,
 } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   MILESTONE_STATUS_LABELS,
@@ -37,6 +37,8 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate, formatDateTime } from '@/utils/formatDate';
 import { CurrentStages } from './WorkListPage';
 import { MilestoneEditModal } from './components/MilestoneEditModal';
+import { DocumentsSection } from './documents/DocumentsSection';
+import { TAB_FOR_MILESTONE, type DocumentTab } from './documents/documentTabs';
 import { UpdateProgressModal } from './components/UpdateProgressModal';
 import { WorkFormModal } from './components/WorkFormModal';
 
@@ -281,6 +283,8 @@ export function WorkDetailPage() {
   const { remove } = useWorkMutations();
   const [dialog, setDialog] = useState<'edit' | 'delete' | 'reassign' | null>(null);
   const [editing, setEditing] = useState<WorkMilestoneDto | null>(null);
+  const [documentTab, setDocumentTab] = useState<DocumentTab>('memo');
+  const documentsRef = useRef<HTMLDivElement>(null);
 
   if (workQuery.isPending) return <div className="skeleton h-96 w-full" />;
   if (workQuery.isError) {
@@ -377,17 +381,11 @@ export function WorkDetailPage() {
 
       <Summary work={work} />
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <div className="xl:col-span-2">
-          <ProgressLog work={work} />
-        </div>
-        <SectionCard title="Dokumen">
-          <EmptyState
-            title="Dokumen pengadaan"
-            description="Memo & MoA, RFQ & LoA, PVP, PO & TOP, Agreement/Addendum tersedia pada tahap berikutnya."
-          />
-        </SectionCard>
+      <div ref={documentsRef} className="scroll-mt-20">
+        <DocumentsSection work={work} tab={documentTab} onTabChange={setDocumentTab} />
       </div>
+
+      <ProgressLog work={work} />
 
       {dialog === 'edit' && <WorkFormModal work={work} onClose={() => setDialog(null)} />}
       {dialog === 'reassign' && <ReassignModal work={work} onClose={() => setDialog(null)} />}
@@ -397,6 +395,15 @@ export function WorkDetailPage() {
           method={work.method}
           milestone={editing}
           onClose={() => setEditing(null)}
+          onOpenDocuments={
+            TAB_FOR_MILESTONE[editing.type]
+              ? () => {
+                  setDocumentTab(TAB_FOR_MILESTONE[editing.type]!);
+                  setEditing(null);
+                  documentsRef.current?.scrollIntoView({ behavior: 'smooth' });
+                }
+              : undefined
+          }
         />
       )}
       <ConfirmModal

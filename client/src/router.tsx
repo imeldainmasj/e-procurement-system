@@ -4,6 +4,8 @@ import { RequireAccess } from '@/components/auth/RequireAccess';
 import { GuestOnly, RequireAuth } from '@/components/auth/RequireAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { NAV_SECTIONS } from '@/config/navigation';
+import { AgreementDetailPage } from '@/features/agreements/AgreementDetailPage';
+import { AgreementListPage } from '@/features/agreements/AgreementListPage';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { NotFoundPage } from '@/features/errors/NotFoundPage';
 import { ComingSoonPage } from '@/features/placeholder/ComingSoonPage';
@@ -20,6 +22,7 @@ import { WorkListPage } from '@/features/works/WorkListPage';
 const PAGES: Record<string, ReactNode> = {
   '/pekerjaan/saya': <WorkListPage mine />,
   '/pekerjaan': <WorkListPage />,
+  '/kontrak': <AgreementListPage />,
   '/vendor': <VendorListPage />,
   '/pengaturan/template-milestone': <MilestoneTemplatesPage />,
   '/pengaturan/pengguna': <UsersPage />,
@@ -60,6 +63,14 @@ export const router = createBrowserRouter([
             element: (
               <RequireAccess access={{ feature: 'WORK' }}>
                 <WorkDetailPage />
+              </RequireAccess>
+            ),
+          },
+          {
+            path: 'kontrak/:id',
+            element: (
+              <RequireAccess access={{ feature: 'AGREEMENT' }}>
+                <AgreementDetailPage />
               </RequireAccess>
             ),
           },

@@ -7,8 +7,11 @@ import { Can } from '@/components/auth/Can';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionCard } from '@/components/ui/SectionCard';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { vendorHooks } from '@/hooks/useVendors';
+import { useWorks } from '@/hooks/useWorks';
 import { toast } from '@/stores/toastStore';
+import { formatCurrency } from '@/utils/formatCurrency';
 import { VendorFormModal } from './components/VendorFormModal';
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -16,6 +19,44 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
     <div>
       <dt className="text-base-content/60 text-xs">{label}</dt>
       <dd className="font-medium break-words">{children || '-'}</dd>
+    </div>
+  );
+}
+
+/** Latest 50 works of the vendor, newest procurement year first. */
+function VendorWorks({ vendorId }: { vendorId: string }) {
+  const works = useWorks({ page: 1, limit: 50, vendorId, sort: 'procurementYear:desc' });
+  if (works.isPending) return <div className="skeleton m-4 h-32" />;
+  if (!works.data?.data.length) return <EmptyState title="Belum ada pekerjaan dengan vendor ini" />;
+  return (
+    <div className="overflow-x-auto">
+      <table className="table-sm table">
+        <thead className="bg-base-200/60 text-base-content/60 text-xs uppercase">
+          <tr>
+            <th>Tahun</th>
+            <th>Pekerjaan</th>
+            <th className="text-right">Nilai (IDR)</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {works.data.data.map((w) => (
+            <tr key={w.id} className="hover:bg-base-200/40">
+              <td>{w.procurementYear}</td>
+              <td>
+                <Link to={`/pekerjaan/${w.id}`} className="link link-hover">
+                  {w.title}
+                </Link>
+                <div className="text-base-content/60 font-mono text-xs">{w.code}</div>
+              </td>
+              <td className="text-right whitespace-nowrap">{formatCurrency(w.amountIdr)}</td>
+              <td>
+                <StatusBadge status={w.status} kind="work" />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -90,16 +131,14 @@ export function VendorDetailPage() {
         <SectionCard
           title="Riwayat Pengadaan"
           className="lg:col-span-2"
+          flush
           actions={
             <span className="badge badge-soft badge-primary">
               {vendor.workCount} pekerjaan · {vendor.agreementCount} kontrak
             </span>
           }
         >
-          <EmptyState
-            title="Riwayat pengadaan belum tersedia"
-            description="Daftar pekerjaan dan kontrak vendor ini tampil setelah modul Pekerjaan selesai."
-          />
+          <VendorWorks vendorId={vendor.id} />
         </SectionCard>
       </div>
 

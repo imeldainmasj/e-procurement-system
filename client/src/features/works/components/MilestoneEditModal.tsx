@@ -1,4 +1,4 @@
-import { Lock } from 'lucide-react';
+import { FileText, Lock } from 'lucide-react';
 import { useForm, useWatch } from 'react-hook-form';
 import {
   EXECUTOR_LABELS,
@@ -19,15 +19,30 @@ interface Props {
   method: ProcurementMethod;
   milestone: WorkMilestoneDto;
   onClose: () => void;
+  /** Set for document-backed milestones: they are completed by recording the document. */
+  onOpenDocuments?: () => void;
 }
 
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
 
 /** Status, dates and reference of one milestone; the server enforces the §5.5 rules. */
-export function MilestoneEditModal({ workId, method, milestone: m, onClose }: Props) {
+export function MilestoneEditModal({
+  workId,
+  method,
+  milestone: m,
+  onClose,
+  onOpenDocuments,
+}: Props) {
   const { updateMilestone } = useWorkMutations();
   const locked = m.missingPrerequisites.length > 0 && m.status !== 'DONE';
   const official = m.type === 'OFFICIAL_APPROVAL';
+  const byDocument = Boolean(onOpenDocuments);
+  // Document-backed milestones: DONE only through the document (§5.5 rule 8).
+  const statuses = byDocument
+    ? m.status === 'DONE'
+      ? (['DONE'] as const)
+      : (['NOT_STARTED', 'IN_PROGRESS'] as const)
+    : (['NOT_STARTED', 'IN_PROGRESS', 'DONE'] as const);
 
   const { register, handleSubmit, control } = useForm<MilestoneUpdateInput>({
     defaultValues: {
@@ -76,11 +91,28 @@ export function MilestoneEditModal({ workId, method, milestone: m, onClose }: Pr
             </span>
           </div>
         )}
+        {byDocument && (
+          <div role="note" className="alert alert-info alert-soft mb-3 text-sm">
+            <FileText className="size-4" />
+            <span>
+              {m.status === 'DONE'
+                ? 'Tahap ini selesai dari dokumennya. Ubah atau hapus dokumen untuk mengoreksinya.'
+                : 'Tahap ini selesai otomatis saat dokumennya dicatat.'}
+            </span>
+            <button
+              type="button"
+              className="btn btn-xs btn-soft btn-primary"
+              onClick={onOpenDocuments}
+            >
+              Buka dokumen
+            </button>
+          </div>
+        )}
         <FormError error={updateMilestone.error} />
         <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
           <FormField label="Status" required>
             <select className="select w-full" {...register('status')}>
-              {(['NOT_STARTED', 'IN_PROGRESS', 'DONE'] as const).map((s) => (
+              {statuses.map((s) => (
                 <option key={s} value={s} disabled={locked && s !== 'NOT_STARTED'}>
                   {MILESTONE_STATUS_LABELS[s]}
                 </option>
@@ -95,7 +127,7 @@ export function MilestoneEditModal({ workId, method, milestone: m, onClose }: Pr
               <input type="date" className="input w-full" {...register('startedAt')} />
             </FormField>
           )}
-          {status === 'DONE' && (
+          {status === 'DONE' && !byDocument && (
             <FormField label="Tanggal Selesai" hint="Kosong = hari ini">
               <input type="date" className="input w-full" {...register('completedAt')} />
             </FormField>

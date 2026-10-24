@@ -30,11 +30,10 @@ import { usePermission } from '@/hooks/usePermission';
 import { vendorHooks } from '@/hooks/useVendors';
 import { useAgreementOptions, useRuleEvaluation, useWorkMutations } from '@/hooks/useWorks';
 import { toast } from '@/stores/toastStore';
+import { CURRENCIES } from '@/utils/currencies';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
 import { applyServerFieldErrors } from '@/utils/formErrors';
-
-const CURRENCIES = ['IDR', 'USD', 'SGD', 'EUR'];
 
 interface Props {
   work: WorkDetailDto | null;

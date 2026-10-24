@@ -10,7 +10,7 @@ import { writeAuditLog } from '../../lib/audit.js';
 import { prisma, type TxClient } from '../../lib/prisma.js';
 import type { Actor } from '../../utils/actor.js';
 // Circular with works.service (it reads the settings); safe because both only call at runtime.
-import { refreshAllWorkIssues } from '../works/works.service.js';
+import { refreshAllWorkIssues } from '../works/work-state.js';
 
 const ENTITY = 'AppSetting';
 

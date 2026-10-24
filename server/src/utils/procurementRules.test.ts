@@ -5,15 +5,19 @@ import {
 } from '@sipita/shared';
 import { describe, expect, it } from 'vitest';
 import {
+  agreementStatus,
   canRecordPo,
   canStartMilestone,
   computeIncreasePercent,
   currentStages,
+  documentCompletions,
   getDataIssues,
   isPvpRequired,
   isStale,
+  memoMilestone,
   suggestMethod,
   type DataIssueInput,
+  type DocumentSnapshot,
   type MilestoneLike,
 } from './procurementRules.js';
 
@@ -89,20 +93,33 @@ describe('milestone prerequisites', () => {
     ).toBe(false);
   });
 
-  it('reports parallel branches as current stages', () => {
-    const ms = tender({ MEMO: 'DONE', RFQ: 'DONE', PVP: 'DONE', LOA: 'IN_PROGRESS' });
-    expect(currentStages(ms).map((m) => m.type)).toEqual(['MOA_METHOD', 'MOA_COST', 'LOA']);
-  });
+  it('runs Tender/Bidding strictly in order: MoA → LoA → MoA Biaya → PO', () => {
+    const afterPvp = tender({ MEMO: 'DONE', RFQ: 'DONE', PVP: 'DONE' });
+    expect(currentStages(afterPvp).map((m) => m.type)).toEqual(['MOA_METHOD']);
 
-  it('does not wait for LoA before the PO', () => {
-    const ms = tender({
+    const waitingLoa = tender({ MEMO: 'DONE', RFQ: 'DONE', PVP: 'DONE', MOA_METHOD: 'DONE' });
+    expect(currentStages(waitingLoa).map((m) => m.type)).toEqual(['LOA']);
+
+    const afterLoa = tender({
       MEMO: 'DONE',
       RFQ: 'DONE',
       PVP: 'DONE',
       MOA_METHOD: 'DONE',
-      MOA_COST: 'DONE',
+      LOA: 'DONE',
     });
-    expect(currentStages(ms).map((m) => m.type)).toEqual(['LOA', 'PO']);
+    expect(currentStages(afterLoa).map((m) => m.type)).toEqual(['MOA_COST']);
+  });
+
+  it('still runs MoA PL and MoA Biaya in parallel for Penunjukan Langsung', () => {
+    const pl = DEFAULT_MILESTONE_TEMPLATES.DIRECT_APPOINTMENT.map((t) => ({
+      type: t.type,
+      sequence: t.sequence,
+      prerequisites: t.prerequisites,
+      status: (['MEMO', 'PVP', 'OFFICIAL_APPROVAL'].includes(t.type)
+        ? 'DONE'
+        : 'NOT_STARTED') as MilestoneStatus,
+    }));
+    expect(currentStages(pl).map((m) => m.type)).toEqual(['MOA_METHOD', 'MOA_COST']);
   });
 });
 
@@ -184,5 +201,112 @@ describe('isStale', () => {
     expect(isStale({ status: 'ACTIVE', lastUpdatedAt: daysAgo(7) }, settings, now)).toBe(false);
     expect(isStale({ status: 'ACTIVE', lastUpdatedAt: daysAgo(7.1) }, settings, now)).toBe(true);
     expect(isStale({ status: 'ON_HOLD', lastUpdatedAt: daysAgo(30) }, settings, now)).toBe(false);
+  });
+});
+
+describe('documentCompletions', () => {
+  const d = (s: string) => new Date(s);
+  const empty: DocumentSnapshot = {
+    memos: [],
+    rfq: null,
+    pvp: null,
+    purchaseOrders: [],
+    agreements: [],
+    addendums: [],
+  };
+
+  it('maps memo types per method and dates milestones by the documents', () => {
+    const c = documentCompletions(
+      'TENDER',
+      null,
+      {
+        ...empty,
+        memos: [
+          { memoType: 'MEMO_PROCUREMENT', memoDate: d('2026-02-12') },
+          { memoType: 'MOA_TENDER_RESULT', memoDate: d('2026-05-02') },
+          { memoType: 'MOA_PL', memoDate: d('2026-05-03') }, // not a Tender memo
+        ],
+        rfq: { recordedAt: d('2026-03-01'), loaNo: 'LOA/1', loaDate: d('2026-05-27') },
+        purchaseOrders: [{ poDate: d('2026-06-10') }, { poDate: d('2026-06-01') }],
+      },
+      2,
+    );
+    expect(c).toEqual({
+      MEMO: d('2026-02-12'),
+      MOA_METHOD: d('2026-05-02'),
+      RFQ: d('2026-03-01'),
+      LOA: d('2026-05-27'),
+      PO: d('2026-06-01'),
+    });
+  });
+
+  it('completes PVP only when APPROVED with enough director approvals', () => {
+    const pvp = (status: 'PENDING' | 'APPROVED', approvals: number) => ({
+      ...empty,
+      pvp: {
+        status,
+        approvals: Array.from({ length: approvals }, (_, i) => ({
+          decision: 'APPROVED' as const,
+          approvalDate: d(`2026-04-1${i}`),
+        })),
+      },
+    });
+    expect(documentCompletions('TENDER', null, pvp('APPROVED', 1), 2).PVP).toBeUndefined();
+    expect(documentCompletions('TENDER', null, pvp('PENDING', 3), 2).PVP).toBeUndefined();
+    expect(documentCompletions('TENDER', null, pvp('APPROVED', 2), 2).PVP).toEqual(d('2026-04-11'));
+  });
+
+  it('completes the PK final step from the document matching the chosen result', () => {
+    const docs = {
+      ...empty,
+      agreements: [{ periodStart: d('2026-07-01'), recordedAt: d('2026-06-20') }],
+      addendums: [{ addendumDate: d('2026-06-15') }],
+    };
+    expect(documentCompletions('SPECIAL_EXTENSION', 'ADDENDUM', docs, 2)).toEqual({
+      AGREEMENT_OR_ADDENDUM: d('2026-06-15'),
+    });
+    expect(documentCompletions('SPECIAL_EXTENSION', 'NEW_AGREEMENT', docs, 2)).toEqual({
+      AGREEMENT_OR_ADDENDUM: d('2026-06-20'),
+    });
+    expect(documentCompletions('SPECIAL_EXTENSION', null, docs, 2)).toEqual({});
+  });
+
+  it('maps memo types to milestones only for their method', () => {
+    expect(memoMilestone('MEMO_PK', 'SPECIAL_EXTENSION')).toBe('MEMO');
+    expect(memoMilestone('MEMO_PK', 'TENDER')).toBeNull();
+    expect(memoMilestone('MOA_COST', 'DIRECT_APPOINTMENT')).toBe('MOA_COST');
+  });
+});
+
+describe('getDataIssues with documents', () => {
+  it('flags DONE milestones without their document', () => {
+    const ms = tender({ MEMO: 'DONE', RFQ: 'DONE', PVP: 'DONE' });
+    const issues = getDataIssues(
+      {
+        method: 'TENDER',
+        amountIdr: 2_000 * M,
+        status: 'ACTIVE',
+        pvpRequired: true,
+        sourceAgreementId: null,
+        pkResult: null,
+        lastUpdatedAt: new Date(),
+        milestones: ms,
+        completions: { MEMO: new Date() },
+      },
+      settings,
+    );
+    expect(issues.map((i) => i.code)).toEqual(['DOCUMENT_MISSING', 'PVP_INSUFFICIENT_APPROVALS']);
+    expect(issues[0]!.message).toBe('RFQ selesai tanpa dokumen');
+  });
+});
+
+describe('agreementStatus', () => {
+  const days = [90, 60, 30];
+  it('derives the status from the effective end date', () => {
+    expect(agreementStatus('2027-06-30', '2026-10-25', days)).toBe('ACTIVE');
+    expect(agreementStatus('2027-01-23', '2026-10-25', days)).toBe('EXPIRING_SOON');
+    expect(agreementStatus('2026-10-25', '2026-10-25', days)).toBe('EXPIRING_SOON');
+    expect(agreementStatus('2026-10-24', '2026-10-25', days)).toBe('EXPIRED');
+    expect(agreementStatus('2026-10-24', '2026-10-25', days, 'TERMINATED')).toBe('TERMINATED');
   });
 });

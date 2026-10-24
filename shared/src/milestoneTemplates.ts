@@ -10,28 +10,28 @@ export interface MilestoneTemplateDef {
   isConditional: boolean;
 }
 
+/** Sequential: the LoA (processed outside IT) follows the MoA and precedes the cost MoA. */
 const tenderOrBidding: MilestoneTemplateDef[] = [
   { type: 'MEMO', sequence: 1, executor: 'IT', prerequisites: [], isConditional: false },
   { type: 'RFQ', sequence: 2, executor: 'IT', prerequisites: ['MEMO'], isConditional: false },
   { type: 'PVP', sequence: 3, executor: 'DIRECTORS', prerequisites: ['RFQ'], isConditional: true },
   { type: 'MOA_METHOD', sequence: 4, executor: 'IT', prerequisites: ['PVP'], isConditional: false },
-  { type: 'MOA_COST', sequence: 4, executor: 'IT', prerequisites: ['PVP'], isConditional: false },
-  // LoA is processed outside IT and is not a prerequisite of the PO.
   {
     type: 'LOA',
-    sequence: 4,
+    sequence: 5,
     executor: 'OTHER_TEAM',
-    prerequisites: ['PVP'],
+    prerequisites: ['MOA_METHOD'],
     isConditional: false,
   },
+  { type: 'MOA_COST', sequence: 6, executor: 'IT', prerequisites: ['LOA'], isConditional: false },
   {
     type: 'PO',
-    sequence: 5,
+    sequence: 7,
     executor: 'IT',
     prerequisites: ['MOA_METHOD', 'MOA_COST'],
     isConditional: false,
   },
-  { type: 'AGREEMENT', sequence: 6, executor: 'IT', prerequisites: ['PO'], isConditional: false },
+  { type: 'AGREEMENT', sequence: 8, executor: 'IT', prerequisites: ['PO'], isConditional: false },
 ];
 
 function withOfficialApproval(finalStep: MilestoneType): MilestoneTemplateDef[] {

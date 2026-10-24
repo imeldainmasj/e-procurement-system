@@ -16,21 +16,21 @@ import {
   type WorkUpdateDto,
   type WorkUpdatePayload,
 } from '@sipita/shared';
-import { Prisma } from '../../generated/prisma/client.js';
+import type { Prisma } from '../../generated/prisma/client.js';
 import { writeAuditLog } from '../../lib/audit.js';
 import { dayjs } from '../../lib/dayjs.js';
 import { prisma, type TxClient } from '../../lib/prisma.js';
 import type { Actor } from '../../utils/actor.js';
 import { AppError } from '../../utils/AppError.js';
 import { iso } from '../../utils/dto.js';
+import { amountInIdr, num, numOrNull } from '../../utils/money.js';
 import { nextWorkCode } from '../../utils/numbering.js';
 import { buildOrderBy, pageArgs, pageMeta } from '../../utils/pagination.js';
 import {
-  canRecordPo,
   computeIncreasePercent,
   currentStages,
+  DOCUMENT_MILESTONES,
   finalMilestone,
-  getDataIssues,
   isPvpRequired,
   isStale,
   missingPrerequisites,
@@ -47,19 +47,10 @@ import {
 } from '../attachments/attachments.service.js';
 import { activeFor } from '../milestone-templates/milestone-templates.service.js';
 import { getSettings } from '../settings/settings.service.js';
+import { refreshWorkIssues } from './work-state.js';
 
 const ENTITY = 'Work';
 const active = { deletedAt: null };
-
-// ─── Money helpers ───────────────────────────────────────────────────────────
-
-const num = (d: Prisma.Decimal) => Number(d.toString());
-const numOrNull = (d: Prisma.Decimal | null) => (d === null ? null : num(d));
-
-/** amount × rate in Decimal arithmetic, rounded to 2 decimals. */
-export function amountInIdr(amount: number, exchangeRate: number): Prisma.Decimal {
-  return new Prisma.Decimal(amount).mul(exchangeRate).toDecimalPlaces(2);
-}
 
 // ─── Selects & DTOs ──────────────────────────────────────────────────────────
 
@@ -121,7 +112,7 @@ type ListRecord = Prisma.WorkGetPayload<{ select: typeof listSelect }>;
 type DetailRecord = Prisma.WorkGetPayload<{ select: typeof detailSelect }>;
 type MilestoneRecord = ListRecord['milestones'][number];
 
-const dateOnly = (d: Date | null) => (d ? dayjs(d).format('YYYY-MM-DD') : null);
+export const dateOnly = (d: Date | null) => (d ? dayjs(d).format('YYYY-MM-DD') : null);
 
 function toStage(m: MilestoneRecord, method: ProcurementMethod): StageDto {
   return {
@@ -208,59 +199,18 @@ function toDetail(w: DetailRecord, settings: RuleSettings, actor: Actor): WorkDe
 // ─── Ownership (CLAUDE.md §4) ────────────────────────────────────────────────
 
 /** Admins act with manager rights on works. */
-function isManagerActor(actor: Actor): boolean {
+export function isManagerActor(actor: Actor): boolean {
   return actor.isAdmin || isManager(actor.jobLevel);
 }
 
-function canModify(work: { picId: string }, actor: Actor): boolean {
+export function canModify(work: { picId: string }, actor: Actor): boolean {
   return isManagerActor(actor) || work.picId === actor.userId;
 }
 
-function assertCanModify(work: { picId: string }, actor: Actor): void {
+export function assertCanModify(work: { picId: string }, actor: Actor): void {
   if (!canModify(work, actor)) {
     throw new AppError(403, 'NOT_WORK_OWNER', 'Anda hanya dapat mengubah pekerjaan milik Anda');
   }
-}
-
-// ─── Data issues cache ───────────────────────────────────────────────────────
-
-/** Recomputes and stores the work's data issues; call inside the write transaction. */
-export async function refreshWorkIssues(
-  tx: TxClient,
-  workId: string,
-  settings: RuleSettings,
-): Promise<void> {
-  const w = await tx.work.findUniqueOrThrow({
-    where: { id: workId },
-    select: {
-      method: true,
-      amountIdr: true,
-      status: true,
-      pvpRequired: true,
-      sourceAgreementId: true,
-      pkResult: true,
-      lastUpdatedAt: true,
-      milestones: { select: { type: true, sequence: true, status: true, prerequisites: true } },
-    },
-  });
-  const issues = getDataIssues({ ...w, amountIdr: num(w.amountIdr) }, settings);
-  await tx.work.update({
-    where: { id: workId },
-    data: {
-      dataIssues: issues as unknown as Prisma.InputJsonValue,
-      hasDataIssues: issues.length > 0,
-    },
-  });
-}
-
-/** After a threshold change every work's cached issues may be outdated. */
-export async function refreshAllWorkIssues(): Promise<number> {
-  const settings = await getSettings();
-  const works = await prisma.work.findMany({ where: active, select: { id: true } });
-  for (const { id } of works) {
-    await prisma.$transaction((tx) => refreshWorkIssues(tx, id, settings));
-  }
-  return works.length;
 }
 
 // ─── Queries ─────────────────────────────────────────────────────────────────
@@ -627,39 +577,11 @@ function ruleError(code: string, message: string): AppError {
   return new AppError(422, code, message);
 }
 
-/** Director approvals recorded for the work's PVP forum (rule 3, §5.5). */
-async function approvedDirectorCount(db: TxClient, workId: string): Promise<number> {
-  return db.pvpApproval.count({
-    where: { decision: 'APPROVED', deletedAt: null, pvpForum: { workId, deletedAt: null } },
-  });
-}
-
-/** Rule 4: the PK source agreement must be active on the Memo PK date. */
-async function assertSourceAgreementActive(
-  db: TxClient,
-  sourceAgreementId: string | null,
-  date: Date,
-): Promise<void> {
-  const agreement = sourceAgreementId
-    ? await db.agreement.findFirst({ where: { id: sourceAgreementId, ...active } })
-    : null;
-  const day = dayjs(date).format('YYYY-MM-DD');
-  const activeOnDay =
-    agreement &&
-    agreement.status !== 'TERMINATED' &&
-    dateOnly(agreement.periodStart)! <= day &&
-    dateOnly(agreement.periodEnd)! >= day;
-  if (!activeOnDay) {
-    throw ruleError(
-      'PK_SOURCE_AGREEMENT_INACTIVE',
-      'Kontrak sumber PK tidak aktif pada tanggal Memo PK',
-    );
-  }
-}
-
 /**
  * Status change of one milestone through the app, with the blocking rules of §5.5.
- * Writes a progress log entry, bumps lastUpdatedAt and refreshes the data issues.
+ * Document-backed milestones only move between NOT_STARTED and IN_PROGRESS here; they
+ * become DONE when their document is recorded (rule 8). Writes a progress log entry,
+ * bumps lastUpdatedAt and refreshes the data issues.
  */
 export async function updateMilestone(
   workId: string,
@@ -683,6 +605,21 @@ export async function updateMilestone(
         throw ruleError(
           'MILESTONE_NOT_APPLICABLE',
           'Status "Tidak Berlaku" ditentukan otomatis dari aturan PVP',
+        );
+      }
+    }
+
+    if (DOCUMENT_MILESTONES.has(m.type)) {
+      if (input.status === 'DONE' && m.status !== 'DONE') {
+        throw ruleError(
+          'MILESTONE_REQUIRES_DOCUMENT',
+          `${label} selesai otomatis saat dokumennya dicatat di tab Dokumen`,
+        );
+      }
+      if (m.status === 'DONE' && input.status !== 'DONE') {
+        throw ruleError(
+          'MILESTONE_REQUIRES_DOCUMENT',
+          `${label} sudah memiliki dokumen; ubah atau hapus dokumennya untuk membuka kembali`,
         );
       }
     }
@@ -711,39 +648,13 @@ export async function updateMilestone(
       }
     }
 
+    // A document-backed milestone keeps the date of its document.
     const completedAt =
-      input.status === 'DONE'
-        ? new Date(input.completedAt ?? dayjs().tz().format('YYYY-MM-DD'))
-        : null;
-
-    if (input.status === 'DONE') {
-      if (m.type === 'PO' && !canRecordPo(w)) {
-        throw ruleError(
-          'PO_REQUIRES_MOA',
-          'PO tidak dapat dicatat sebelum MoA sesuai metode dan MoA Biaya selesai',
-        );
-      }
-      if (m.type === 'PVP') {
-        const approvals = await approvedDirectorCount(tx, workId);
-        if (approvals < settings.PVP_MIN_DIRECTOR_APPROVALS) {
-          throw ruleError(
-            'PVP_INSUFFICIENT_APPROVALS',
-            `PVP membutuhkan minimal ${settings.PVP_MIN_DIRECTOR_APPROVALS} approval direktur (tercatat ${approvals})`,
-          );
-        }
-      }
-      if (w.method === 'SPECIAL_EXTENSION') {
-        if (m.type === 'MEMO') {
-          await assertSourceAgreementActive(tx, w.sourceAgreementId, completedAt!);
-        }
-        if (m.type === finalMilestone(w.milestones)?.type && !w.pkResult) {
-          throw ruleError(
-            'PK_RESULT_REQUIRED',
-            'Pilih hasil PK (Addendum atau Agreement baru) sebelum menyelesaikan tahap ini',
-          );
-        }
-      }
-    }
+      input.status !== 'DONE'
+        ? null
+        : DOCUMENT_MILESTONES.has(m.type)
+          ? m.completedAt
+          : new Date(input.completedAt ?? dayjs().tz().format('YYYY-MM-DD'));
 
     const startedAt =
       input.status === 'NOT_STARTED'

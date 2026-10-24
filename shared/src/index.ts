@@ -16,3 +16,5 @@ export * from './schemas/setting.schema.js';
 export * from './schemas/notification.schema.js';
 export * from './schemas/milestone-template.schema.js';
 export * from './schemas/work.schema.js';
+export * from './schemas/document.schema.js';
+export * from './documentRules.js';

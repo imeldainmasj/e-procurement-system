@@ -156,7 +156,7 @@ Semua pengguna adalah anggota tim **IT SAPM**. **Seluruh input data dilakukan ol
 
 | Jabatan (`jobLevel`) | Lihat data | Ubah data |
 |---|---|---|
-| `STAFF` | Semua data pengadaan & report | Hanya pekerjaan yang PIC-nya dirinya (milestone, dokumen, log update) |
+| `STAFF` | Semua data pengadaan & report | Hanya pekerjaan yang PIC-nya dirinya (buat, ubah, hapus, milestone, dokumen, log update) |
 | `MANAGER_L1` | Semua, termasuk Monitoring Tim | Semua pekerjaan; bisa mengganti PIC |
 | `MANAGER_L2` | Semua, termasuk Monitoring Tim | Semua pekerjaan; bisa mengganti PIC |
 
@@ -206,9 +206,8 @@ PVP* = hanya berlaku jika PVP wajib (5.3). Milestone dalam satu kurung siku `[ .
 
 **Tender / Bidding**
 ```
-Memo → RFQ → PVP* ─┬─ MoA Hasil Tender ─┐
-                   ├─ MoA Biaya ────────┴─→ PO → Agreement
-                   └─ LoA (diproses tim di luar IT, diinput staff IT)
+Memo → RFQ → PVP* → MoA Hasil Tender → LoA → MoA Biaya → PO → Agreement
+                                     (LoA diproses tim di luar IT, diinput staff IT)
 ```
 
 **Penunjukan Langsung (PL)**
@@ -231,10 +230,10 @@ Definisi template (disimpan di `MilestoneTemplate`, bisa diubah admin dari menu 
 | | 2 | `RFQ` | `IT` | MEMO | |
 | | 3 | `PVP` | `DIRECTORS` | RFQ | PVP* |
 | | 4 | `MOA_METHOD` (MoA Hasil Tender) | `IT` | PVP | |
-| | 4 | `MOA_COST` (MoA Biaya) | `IT` | PVP | |
-| | 4 | `LOA` | `OTHER_TEAM` | PVP | |
-| | 5 | `PO` | `IT` | MOA_METHOD, MOA_COST | |
-| | 6 | `AGREEMENT` | `IT` | PO | |
+| | 5 | `LOA` | `OTHER_TEAM` | MOA_METHOD | |
+| | 6 | `MOA_COST` (MoA Biaya) | `IT` | LOA | |
+| | 7 | `PO` | `IT` | MOA_METHOD, MOA_COST | |
+| | 8 | `AGREEMENT` | `IT` | PO | |
 | PL | 1 | `MEMO` (Memo PL) | `IT` | – | |
 | | 2 | `PVP` | `DIRECTORS` | MEMO | PVP* |
 | | 3 | `OFFICIAL_APPROVAL` | `OFFICIAL` | PVP | |
@@ -252,7 +251,7 @@ Definisi template (disimpan di `MilestoneTemplate`, bisa diubah admin dari menu 
 
 - Prasyarat dianggap terpenuhi bila milestone prasyarat berstatus `DONE` **atau** `NOT_APPLICABLE`.
 - Perubahan template **tidak** mengubah milestone pekerjaan yang sudah ada (hanya untuk pekerjaan baru).
-- LoA pelaksananya `OTHER_TEAM` (tim di luar IT), tetapi tetap bagian dari pekerjaan IT dan diinput staff IT. LoA **tidak** menjadi prasyarat PO.
+- LoA pelaksananya `OTHER_TEAM` (tim di luar IT), tetapi tetap bagian dari pekerjaan IT dan diinput staff IT. Pada Tender/Bidding, LoA terbit setelah MoA Hasil Tender dan menjadi prasyarat MoA Biaya (keputusan user 2026-10-25; urutan Tender/Bidding sepenuhnya berurutan, tanpa cabang paralel).
 
 ### 5.5 Validasi yang Memblokir vs Peringatan
 
@@ -263,6 +262,8 @@ Definisi template (disimpan di `MilestoneTemplate`, bisa diubah admin dari menu 
 4. PK wajib merujuk `sourceAgreementId` yang **aktif** pada tanggal Memo PK.
 5. Milestone akhir PK tidak boleh `DONE` sebelum staff memilih hasilnya: `ADDENDUM` (pada kontrak lama) atau `NEW_AGREEMENT`. Pilihan mengikuti keputusan di luar sistem, sistem tidak menentukan.
 6. Nomor dokumen (memo, RFQ, LoA, PO, agreement, addendum) harus unik.
+7. Dokumen **ditolak** jika prasyarat milestone yang terkait belum terpenuhi (berlaku untuk semua dokumen, bukan hanya PO).
+8. Milestone berbasis dokumen hanya bisa `DONE` dengan mencatat dokumennya; status manual hanya `NOT_STARTED` / `IN_PROGRESS`. Pengecualian: `OFFICIAL_APPROVAL` (tanpa tabel dokumen) boleh `DONE` manual.
 
 **Peringatan** (data tetap tersimpan, ditandai di daftar, detail, dan report Kelengkapan Data):
 - Data hasil **import** yang melanggar aturan 1–5 (mis. data 2015 tanpa MoA Biaya) → **tetap masuk** dan ditandai "belum lengkap".
@@ -359,7 +360,7 @@ Saat dokumen dicatat, milestone terkait otomatis menjadi `DONE` (jika prasyarat 
 | Dokumen | Milestone |
 |---|---|
 | Memo `MEMO_PROCUREMENT` / `MEMO_PL` / `MEMO_PK` | `MEMO` |
-| `Rfq` | `RFQ` |
+| `Rfq` (selesai saat No. RFQ dicatat; tanggal = tanggal input) | `RFQ` |
 | `PvpForum` berstatus APPROVED | `PVP` |
 | Memo `MOA_TENDER_RESULT` / `MOA_PL` / `MOA_PK` (sesuai metode) | `MOA_METHOD` |
 | Memo `MOA_COST` | `MOA_COST` |
@@ -418,7 +419,7 @@ erDiagram
 
 ## 7. Import Excel
 
-Data pengadaan masuk **hanya lewat import Excel** (historis 2015–sekarang dan data massal). Form di aplikasi dipakai untuk **update progres, koreksi data, dan melengkapi dokumen**.
+Data pengadaan masuk **hanya lewat import Excel** (historis 2015–sekarang dan data massal). Form di aplikasi dipakai untuk **update progres, koreksi data, dan melengkapi dokumen**. Pekerjaan baru juga boleh dibuat lewat form aplikasi: staff untuk dirinya sendiri, manager untuk siapa pun.
 
 - **Acuan format: `docs/import/template-import.xlsx`** (contoh dari user, berisi data contoh). Template resmi di-generate dari kode (`GET /imports/template`) dengan struktur yang **sama persis** (nama sheet, header, urutan kolom, dropdown) tetapi tanpa data contoh. Sheet: `Petunjuk`, `Vendor`, `Pekerjaan`, `Memo`, `RFQ`, `PVP`, `PVP_Approval`, `Approval_Pejabat`, `PO`, `PO_TOP`, `Agreement`, `Addendum`, dan sheet tersembunyi `Daftar` (sumber dropdown).
 - Header berbahasa Indonesia; tanda `*` di header = wajib (abaikan `*` saat mencocokkan header). Kolom enum berisi **label Bahasa Indonesia** (mis. `Perpanjangan Khusus`, `MoA Biaya`); importer memetakan label → kode enum sesuai tabel di sheet `Petunjuk`.

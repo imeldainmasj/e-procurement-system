@@ -81,8 +81,8 @@ describe('creating works', () => {
       'RFQ',
       'PVP',
       'MOA_METHOD',
-      'MOA_COST',
       'LOA',
+      'MOA_COST',
       'PO',
       'AGREEMENT',
     ]);
@@ -189,70 +189,64 @@ describe('ownership', () => {
   });
 });
 
-describe('milestone rules (§5.5)', () => {
-  it('blocks a milestone before its prerequisites and logs status changes', async () => {
+describe('manual milestone changes (§5.5)', () => {
+  it('blocks a milestone before its prerequisites', async () => {
     const { staff, headers } = await setup();
     const work = await createWork(headers, workBody(staff.id));
-
     const early = await setMilestone(headers, work.id, milestoneId(work, 'RFQ'), {
       status: 'IN_PROGRESS',
     });
     expect(early.status).toBe(422);
     expect(early.body.error.code).toBe('MILESTONE_PREREQUISITE_NOT_MET');
 
-    const memo = await setMilestone(headers, work.id, milestoneId(work, 'MEMO'), {
-      status: 'DONE',
-      completedAt: '2026-02-12',
-      referenceNo: '021/MEMO/IT-SAPM/II/2026',
+    const started = await setMilestone(headers, work.id, milestoneId(work, 'MEMO'), {
+      status: 'IN_PROGRESS',
+      note: 'Draft memo disusun',
     });
-    expect(memo.status).toBe(200);
-    expect(memo.body.data.currentStages.map((s: { type: string }) => s.type)).toEqual(['RFQ']);
-
+    expect(started.status).toBe(200);
     const updates = await request(app).get(`/api/v1/works/${work.id}/updates`).set(headers);
     expect(updates.body.data[0]).toMatchObject({
+      note: 'Draft memo disusun',
       statusFrom: 'NOT_STARTED',
-      statusTo: 'DONE',
+      statusTo: 'IN_PROGRESS',
       milestone: { type: 'MEMO' },
     });
   });
 
-  it('requires both MoAs before the PO and enough director approvals for PVP', async () => {
+  it('completes document-backed milestones only through their document (rule 8)', async () => {
     const { staff, headers } = await setup();
     const work = await createWork(headers, workBody(staff.id));
-    const done = (type: string) =>
-      setMilestone(headers, work.id, milestoneId(work, type), { status: 'DONE' });
+    const res = await setMilestone(headers, work.id, milestoneId(work, 'MEMO'), { status: 'DONE' });
+    expect(res.body.error.code).toBe('MILESTONE_REQUIRES_DOCUMENT');
+  });
 
-    await done('MEMO');
-    await done('RFQ');
-    const pvp = await done('PVP');
-    expect(pvp.body.error.code).toBe('PVP_INSUFFICIENT_APPROVALS');
+  it('lets Approval Pejabat be completed by hand', async () => {
+    const { staff, headers } = await setup();
+    const work = await createWork(
+      headers,
+      workBody(staff.id, {
+        method: 'DIRECT_APPOINTMENT',
+        amount: 300 * M,
+        previousPurchaseAmount: null,
+      }),
+    );
+    const memo = await request(app)
+      .post(`/api/v1/works/${work.id}/memos`)
+      .set(headers)
+      .send({ memoNo: 'M-PL-1', memoType: 'MEMO_PL', title: 'Memo PL', memoDate: '2026-03-02' });
+    expect(memo.status).toBe(201);
 
-    const forum = await prisma.pvpForum.create({
-      data: { workId: work.id, pvpDate: new Date('2026-04-18'), status: 'APPROVED' },
+    const official = await setMilestone(headers, work.id, milestoneId(work, 'OFFICIAL_APPROVAL'), {
+      status: 'DONE',
+      completedAt: '2026-03-20',
+      referenceNo: 'DISP/PROC/2026/031',
+      notes: 'Hartono Wibisono — VP Procurement',
     });
-    await prisma.pvpApproval.createMany({
-      data: ['Direktur Operasional', 'Direktur Keuangan'].map((directorName) => ({
-        pvpForumId: forum.id,
-        directorName,
-        decision: 'APPROVED' as const,
-        approvalDate: new Date('2026-04-19'),
-      })),
-    });
-    expect((await done('PVP')).status).toBe(200);
-
-    await done('MOA_METHOD');
-    const po = await setMilestone(headers, work.id, milestoneId(work, 'PO'), {
-      status: 'IN_PROGRESS',
-    });
-    expect(po.body.error.code).toBe('MILESTONE_PREREQUISITE_NOT_MET');
-    await done('MOA_COST');
-    expect((await done('PO')).status).toBe(200);
-
-    // MEMO cannot be reopened once later milestones depend on it.
-    const reopen = await setMilestone(headers, work.id, milestoneId(work, 'MEMO'), {
-      status: 'IN_PROGRESS',
-    });
-    expect(reopen.body.error.code).toBe('MILESTONE_HAS_DEPENDENTS');
+    expect(official.status).toBe(200);
+    const m = official.body.data.milestones.find(
+      (x: { type: string }) => x.type === 'OFFICIAL_APPROVAL',
+    );
+    expect(m).toMatchObject({ status: 'DONE', completedAt: '2026-03-20' });
   });
 
   it('only completes a work whose final milestone is done', async () => {
@@ -264,70 +258,6 @@ describe('milestone rules (§5.5)', () => {
       .send({ ...workBody(staff.id), status: 'COMPLETED' });
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('WORK_NOT_FINISHED');
-  });
-
-  it('enforces PK rules: active source agreement on the memo date and a chosen result', async () => {
-    const { staff, headers } = await setup();
-    const vendor = await prisma.vendor.create({ data: { code: 'V1', name: 'PT Backup' } });
-    const sourceWork = await createWork(
-      headers,
-      workBody(staff.id, { method: 'BIDDING', amount: 800 * M }),
-    );
-    const po = await prisma.purchaseOrder.create({
-      data: {
-        workId: sourceWork.id,
-        poNo: '4500100001',
-        poType: 'NEW',
-        poName: 'Backup 2025',
-        poDate: new Date('2025-06-01'),
-        amount: 800 * M,
-        amountIdr: 800 * M,
-      },
-    });
-    const agreement = await prisma.agreement.create({
-      data: {
-        agreementNo: 'AGR/IT/2025/015',
-        agreementType: 'NEW',
-        title: 'Lisensi Backup',
-        vendorId: vendor.id,
-        poId: po.id,
-        workId: sourceWork.id,
-        picId: staff.id,
-        periodStart: new Date('2025-07-01'),
-        periodEnd: new Date('2026-06-30'),
-        amount: 800 * M,
-        amountIdr: 800 * M,
-      },
-    });
-
-    const pk = await createWork(
-      headers,
-      workBody(staff.id, {
-        method: 'SPECIAL_EXTENSION',
-        amount: 820 * M,
-        previousPurchaseAmount: 800 * M,
-        sourceAgreementId: agreement.id,
-      }),
-    );
-    const memoId = milestoneId(pk, 'MEMO');
-    const late = await setMilestone(headers, pk.id, memoId, {
-      status: 'DONE',
-      completedAt: '2026-07-15',
-    });
-    expect(late.body.error.code).toBe('PK_SOURCE_AGREEMENT_INACTIVE');
-    expect(
-      (await setMilestone(headers, pk.id, memoId, { status: 'DONE', completedAt: '2026-04-01' }))
-        .status,
-    ).toBe(200);
-
-    for (const type of ['OFFICIAL_APPROVAL', 'MOA_METHOD', 'MOA_COST', 'PO']) {
-      const res = await setMilestone(headers, pk.id, milestoneId(pk, type), { status: 'DONE' });
-      expect(res.status, type).toBe(200);
-    }
-    const final = await setMilestone(headers, pk.id, milestoneId(pk, 'AGREEMENT_OR_ADDENDUM'), {
-      status: 'DONE',
-    });
-    expect(final.body.error.code).toBe('PK_RESULT_REQUIRED');
   });
 });
 
