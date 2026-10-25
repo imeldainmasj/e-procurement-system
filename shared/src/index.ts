@@ -20,3 +20,4 @@ export * from './schemas/document.schema.js';
 export * from './documentRules.js';
 export * from './schemas/import.schema.js';
 export * from './schemas/dashboard.schema.js';
+export * from './schemas/report.schema.js';

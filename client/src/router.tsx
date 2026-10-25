@@ -13,6 +13,12 @@ import { ComingSoonPage } from '@/features/placeholder/ComingSoonPage';
 import { ImportBatchPage } from '@/features/imports/ImportBatchPage';
 import { ImportPage } from '@/features/imports/ImportPage';
 import { MonitoringPage } from '@/features/monitoring/MonitoringPage';
+import { AnnualSummaryReport } from '@/features/reports/AnnualSummaryReport';
+import { ComplianceReport } from '@/features/reports/ComplianceReport';
+import { ExpiringReport } from '@/features/reports/ExpiringReport';
+import { TeamPerformanceReport } from '@/features/reports/TeamPerformanceReport';
+import { VendorReport } from '@/features/reports/VendorReport';
+import { YoyTrendReport } from '@/features/reports/YoyTrendReport';
 import { GeneralSettingsPage } from '@/features/settings/general/GeneralSettingsPage';
 import { MilestoneTemplatesPage } from '@/features/settings/milestone-templates/MilestoneTemplatesPage';
 import { OrganizationPage } from '@/features/settings/organization/OrganizationPage';
@@ -31,6 +37,12 @@ const PAGES: Record<string, ReactNode> = {
   '/kontrak': <AgreementListPage />,
   '/vendor': <VendorListPage />,
   '/import': <ImportPage />,
+  '/report/rekap-tahunan': <AnnualSummaryReport />,
+  '/report/tren': <YoyTrendReport />,
+  '/report/jatuh-tempo': <ExpiringReport />,
+  '/report/vendor': <VendorReport />,
+  '/report/kepatuhan': <ComplianceReport />,
+  '/report/kinerja-tim': <TeamPerformanceReport />,
   '/pengaturan/template-milestone': <MilestoneTemplatesPage />,
   '/pengaturan/pengguna': <UsersPage />,
   '/pengaturan/organisasi': <OrganizationPage />,

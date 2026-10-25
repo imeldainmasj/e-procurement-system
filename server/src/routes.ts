@@ -14,6 +14,7 @@ import {
   directoratesRouter,
   divisionsRouter,
 } from './modules/organization/organization.routes.js';
+import { reportsRouter } from './modules/reports/reports.routes.js';
 import { settingsRouter } from './modules/settings/settings.routes.js';
 import { usersRouter } from './modules/users/users.routes.js';
 import { vendorsRouter } from './modules/vendors/vendors.routes.js';
@@ -41,4 +42,5 @@ apiRouter.use('/agreements', authenticate, agreementsRouter);
 apiRouter.use('/imports', authenticate, importsRouter);
 apiRouter.use('/dashboard', authenticate, dashboardRouter);
 apiRouter.use('/monitoring', authenticate, monitoringRouter);
+apiRouter.use('/reports', authenticate, reportsRouter);
 apiRouter.use('/procurement-rules', authenticate, procurementRulesRouter);
