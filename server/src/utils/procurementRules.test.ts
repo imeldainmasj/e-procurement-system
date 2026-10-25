@@ -6,6 +6,8 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
   agreementStatus,
+  daysUntil,
+  dueContractReminder,
   canRecordPo,
   canStartMilestone,
   computeIncreasePercent,
@@ -316,5 +318,24 @@ describe('agreementStatus', () => {
     expect(agreementStatus('2026-10-25', '2026-10-25', days)).toBe('EXPIRING_SOON');
     expect(agreementStatus('2026-10-24', '2026-10-25', days)).toBe('EXPIRED');
     expect(agreementStatus('2026-10-24', '2026-10-25', days, 'TERMINATED')).toBe('TERMINATED');
+  });
+});
+
+describe('dueContractReminder', () => {
+  const days = [90, 60, 30];
+  it('returns the smallest reminder reached, none before the window or after the end', () => {
+    expect(dueContractReminder(91, days)).toBeNull();
+    expect(dueContractReminder(90, days)).toBe(90);
+    expect(dueContractReminder(75, days)).toBe(90);
+    expect(dueContractReminder(60, days)).toBe(60);
+    expect(dueContractReminder(30, days)).toBe(30);
+    expect(dueContractReminder(0, days)).toBe(30);
+    expect(dueContractReminder(-1, days)).toBeNull();
+    expect(dueContractReminder(10, [])).toBeNull();
+  });
+
+  it('counts whole days between two dates', () => {
+    expect(daysUntil('2026-11-24', '2026-10-25')).toBe(30);
+    expect(daysUntil('2026-10-24', '2026-10-25')).toBe(-1);
   });
 });

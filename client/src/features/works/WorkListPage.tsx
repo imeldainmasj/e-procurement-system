@@ -229,6 +229,9 @@ export function WorkListPage({ mine = false }: { mine?: boolean }) {
               ['true', 'Perlu dicek'],
               ['false', 'Lengkap'],
             ])}
+            {select('stale', 'Semua update', [
+              ['true', `Tidak di-update > ${staleDays ?? 7} hari`],
+            ])}
           </>
         }
       />

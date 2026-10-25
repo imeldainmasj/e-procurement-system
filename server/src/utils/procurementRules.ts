@@ -352,3 +352,22 @@ export function agreementStatus(
   const days = (Date.parse(effectiveEnd) - Date.parse(today)) / 86_400_000;
   return days <= Math.max(0, ...reminderDays) ? 'EXPIRING_SOON' : 'ACTIVE';
 }
+
+/** Whole days from `today` to `effectiveEnd` (both YYYY-MM-DD); negative once it has passed. */
+export function daysUntil(effectiveEnd: string, today: string): number {
+  return Math.round((Date.parse(effectiveEnd) - Date.parse(today)) / 86_400_000);
+}
+
+/**
+ * The reminder (H-90/60/30) an agreement with `daysLeft` is due for: the smallest configured
+ * day count it has reached. A reminder missed on its exact day (server down, data imported
+ * later) is therefore still sent once; the caller deduplicates per threshold.
+ */
+export function dueContractReminder(
+  daysLeft: number,
+  reminderDays: readonly number[],
+): number | null {
+  if (daysLeft < 0) return null;
+  const reached = reminderDays.filter((d) => daysLeft <= d);
+  return reached.length > 0 ? Math.min(...reached) : null;
+}

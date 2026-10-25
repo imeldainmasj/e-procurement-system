@@ -19,21 +19,35 @@ export interface NotificationPayload {
   link?: string;
   /** Also email the recipients (delivered after the transaction commits). */
   email?: boolean;
+  /**
+   * Makes the call idempotent (scheduled jobs): stored per recipient as `<dedupeKey>:<userId>`,
+   * and recipients who already have it get neither a notification nor an email.
+   */
+  dedupeKey?: string;
 }
 
 const activeUser = { deletedAt: null, isActive: true } as const;
 
 /**
- * Creates in-app notifications inside `tx` and returns the emails to send once the
- * transaction has committed (see `sendMailInBackground`).
+ * Creates in-app notifications inside `tx`. Returns the users actually notified and the emails
+ * to send once the transaction has committed (see `sendMailInBackground`).
  */
 export async function notifyUsers(
   tx: TxClient,
   userIds: string[],
   payload: NotificationPayload,
-): Promise<Email[]> {
-  const ids = [...new Set(userIds)];
-  if (ids.length === 0) return [];
+): Promise<{ notified: string[]; emails: Email[] }> {
+  let ids = [...new Set(userIds)];
+  const keyOf = (userId: string) => (payload.dedupeKey ? `${payload.dedupeKey}:${userId}` : null);
+  if (payload.dedupeKey && ids.length > 0) {
+    const sent = await tx.notification.findMany({
+      where: { dedupeKey: { in: ids.map((id) => keyOf(id)!) } },
+      select: { userId: true },
+    });
+    const done = new Set(sent.map((n) => n.userId));
+    ids = ids.filter((id) => !done.has(id));
+  }
+  if (ids.length === 0) return { notified: [], emails: [] };
 
   await tx.notification.createMany({
     data: ids.map((userId) => ({
@@ -42,20 +56,25 @@ export async function notifyUsers(
       title: payload.title,
       message: payload.message,
       link: payload.link ?? null,
+      dedupeKey: keyOf(userId),
     })),
+    skipDuplicates: true,
   });
 
-  if (!payload.email) return [];
+  if (!payload.email) return { notified: ids, emails: [] };
   const users = await tx.user.findMany({
     where: { id: { in: ids }, ...activeUser },
     select: { email: true },
   });
   const url = payload.link ? `\n\nBuka: ${env.CLIENT_URL}${payload.link}` : '';
-  return users.map((u) => ({
-    to: u.email,
-    subject: `[SIPITA] ${payload.title}`,
-    text: `${payload.message}${url}`,
-  }));
+  return {
+    notified: ids,
+    emails: users.map((u) => ({
+      to: u.email,
+      subject: `[SIPITA] ${payload.title}`,
+      text: `${payload.message}${url}`,
+    })),
+  };
 }
 
 /** Active managers (MANAGER_L1 / MANAGER_L2), e.g. for contract and stale-work summaries. */

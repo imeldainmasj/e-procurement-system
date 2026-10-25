@@ -1,5 +1,6 @@
 import { createApp } from './app.js';
 import { env } from './config/env.js';
+import { startJobs, stopJobs } from './jobs/index.js';
 import { logger } from './lib/logger.js';
 import { closePdfBrowser } from './lib/pdf.js';
 import { prisma } from './lib/prisma.js';
@@ -18,6 +19,7 @@ const server = app.listen(env.PORT, (error?: Error) => {
     );
     process.exit(1);
   }
+  startJobs();
   recoverInterrupted().catch((err: unknown) =>
     logger.error({ err }, 'Gagal memulihkan batch import yang terhenti'),
   );
@@ -27,7 +29,9 @@ const server = app.listen(env.PORT, (error?: Error) => {
 function shutdown(signal: string): void {
   logger.info(`${signal} diterima, menutup server...`);
   server.close(() => {
-    void Promise.all([prisma.$disconnect(), closePdfBrowser()]).finally(() => process.exit(0));
+    void stopJobs()
+      .then(() => Promise.all([prisma.$disconnect(), closePdfBrowser()]))
+      .finally(() => process.exit(0));
   });
   // Force exit if connections do not close in time.
   setTimeout(() => process.exit(1), 10_000).unref();
