@@ -21,6 +21,7 @@ import {
 import { getErrorMessage } from '@/api/client';
 import { Can } from '@/components/auth/Can';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { CurrentStages } from '@/components/ui/CurrentStages';
 import { DataIssueBadge } from '@/components/ui/DataIssueBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormField } from '@/components/ui/FormField';
@@ -35,7 +36,6 @@ import { toast } from '@/stores/toastStore';
 import { downloadAttachment } from '@/utils/attachments';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate, formatDateTime } from '@/utils/formatDate';
-import { CurrentStages } from './WorkListPage';
 import { MilestoneEditModal } from './components/MilestoneEditModal';
 import { DocumentsSection } from './documents/DocumentsSection';
 import { TAB_FOR_MILESTONE, type DocumentTab } from './documents/documentTabs';

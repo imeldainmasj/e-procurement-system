@@ -3,7 +3,6 @@ import { MessageSquarePlus, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  EXECUTOR_LABELS,
   PROCUREMENT_METHOD_LABELS,
   PROCUREMENT_METHODS,
   PROCUREMENT_TYPE_LABELS,
@@ -15,6 +14,7 @@ import {
   type WorkListItemDto,
 } from '@sipita/shared';
 import { Can } from '@/components/auth/Can';
+import { CurrentStages } from '@/components/ui/CurrentStages';
 import { DataIssueBadge } from '@/components/ui/DataIssueBadge';
 import { DataTable } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -30,25 +30,6 @@ import { WorkFormModal } from './components/WorkFormModal';
 
 const thisYear = new Date().getFullYear();
 const YEARS = Array.from({ length: thisYear - 2015 + 2 }, (_, i) => thisYear + 1 - i);
-
-/** Stages waiting on someone outside IT (LoA team, directors, officials). */
-export function CurrentStages({ work }: { work: WorkListItemDto }) {
-  if (work.currentStages.length === 0) return <span className="text-base-content/50">-</span>;
-  return (
-    <div className="flex max-w-xs flex-wrap gap-1">
-      {work.currentStages.map((s) => (
-        <span
-          key={s.type}
-          className={`badge badge-sm badge-soft whitespace-nowrap ${s.executor === 'IT' ? 'badge-primary' : 'badge-info'}`}
-          title={s.executor === 'IT' ? undefined : `Menunggu ${EXECUTOR_LABELS[s.executor]}`}
-        >
-          {s.label}
-          {s.executor !== 'IT' && ` · ${EXECUTOR_LABELS[s.executor]}`}
-        </span>
-      ))}
-    </div>
-  );
-}
 
 export function WorkListPage({ mine = false }: { mine?: boolean }) {
   const [params, setParams] = useListParams({ sort: 'lastUpdatedAt:desc' });

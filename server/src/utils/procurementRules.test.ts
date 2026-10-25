@@ -15,6 +15,7 @@ import {
   isPvpRequired,
   isStale,
   memoMilestone,
+  missingPrerequisites,
   suggestMethod,
   type DataIssueInput,
   type DocumentSnapshot,
@@ -81,6 +82,13 @@ describe('milestone prerequisites', () => {
     const ms = tender({ MEMO: 'DONE', RFQ: 'DONE', PVP: 'NOT_APPLICABLE' });
     const moa = ms.find((m) => m.type === 'MOA_METHOD')!;
     expect(canStartMilestone(moa, ms)).toBe(true);
+  });
+
+  it('looks through a not-applicable PVP to its own prerequisites', () => {
+    const ms = tender({ PVP: 'NOT_APPLICABLE' });
+    const moa = ms.find((m) => m.type === 'MOA_METHOD')!;
+    expect(missingPrerequisites(moa, ms)).toEqual(['RFQ']);
+    expect(currentStages(ms).map((m) => m.type)).toEqual(['MEMO']);
   });
 
   it('blocks a milestone whose prerequisite is open', () => {

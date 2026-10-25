@@ -75,21 +75,35 @@ export function isSatisfied(status: MilestoneStatus): boolean {
 }
 
 /** Prerequisites of `milestone` that are not DONE / NOT_APPLICABLE yet. */
+/**
+ * Open prerequisites of `milestone`. A NOT_APPLICABLE prerequisite (PVP not required) is
+ * skipped over, not treated as done: its own prerequisites still have to be met, so e.g.
+ * MoA cannot start before the RFQ just because the PVP between them does not apply.
+ */
 export function missingPrerequisites(
   milestone: Pick<MilestoneLike, 'prerequisites'>,
-  all: readonly Pick<MilestoneLike, 'type' | 'status'>[],
+  all: readonly Pick<MilestoneLike, 'type' | 'status' | 'prerequisites'>[],
 ): MilestoneType[] {
-  return milestone.prerequisites.filter((type) => {
-    const pre = all.find((m) => m.type === type);
-    // A prerequisite the work does not have (template changed) does not block.
-    return pre !== undefined && !isSatisfied(pre.status);
-  });
+  const missing = new Set<MilestoneType>();
+  const visit = (types: readonly MilestoneType[], seen: Set<MilestoneType>) => {
+    for (const type of types) {
+      if (seen.has(type)) continue;
+      seen.add(type);
+      const pre = all.find((m) => m.type === type);
+      // A prerequisite the work does not have (template changed) does not block.
+      if (!pre || pre.status === 'DONE') continue;
+      if (pre.status === 'NOT_APPLICABLE') visit(pre.prerequisites, seen);
+      else missing.add(type);
+    }
+  };
+  visit(milestone.prerequisites, new Set());
+  return [...missing];
 }
 
 /** Rule 1 (§5.5): a milestone may only be IN_PROGRESS / DONE once its prerequisites are met. */
 export function canStartMilestone(
   milestone: Pick<MilestoneLike, 'prerequisites'>,
-  all: readonly Pick<MilestoneLike, 'type' | 'status'>[],
+  all: readonly Pick<MilestoneLike, 'type' | 'status' | 'prerequisites'>[],
 ): boolean {
   return missingPrerequisites(milestone, all).length === 0;
 }

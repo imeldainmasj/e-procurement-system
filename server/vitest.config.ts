@@ -34,6 +34,8 @@ export default defineConfig({
     fileParallelism: false,
     // API tests run many transactions per case; the default 5–10 s is too tight on a busy machine.
     testTimeout: 30_000,
+    // beforeEach truncates every table; give it the same room under load.
+    hookTimeout: 30_000,
     env: {
       NODE_ENV: 'test',
       DATABASE_URL: testUrl.toString(),

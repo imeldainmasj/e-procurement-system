@@ -7,10 +7,12 @@ import { NAV_SECTIONS } from '@/config/navigation';
 import { AgreementDetailPage } from '@/features/agreements/AgreementDetailPage';
 import { AgreementListPage } from '@/features/agreements/AgreementListPage';
 import { LoginPage } from '@/features/auth/LoginPage';
+import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { NotFoundPage } from '@/features/errors/NotFoundPage';
 import { ComingSoonPage } from '@/features/placeholder/ComingSoonPage';
 import { ImportBatchPage } from '@/features/imports/ImportBatchPage';
 import { ImportPage } from '@/features/imports/ImportPage';
+import { MonitoringPage } from '@/features/monitoring/MonitoringPage';
 import { GeneralSettingsPage } from '@/features/settings/general/GeneralSettingsPage';
 import { MilestoneTemplatesPage } from '@/features/settings/milestone-templates/MilestoneTemplatesPage';
 import { OrganizationPage } from '@/features/settings/organization/OrganizationPage';
@@ -22,6 +24,8 @@ import { WorkListPage } from '@/features/works/WorkListPage';
 
 /** Pages built so far, keyed by menu path. Other menu routes show a placeholder. */
 const PAGES: Record<string, ReactNode> = {
+  '/': <DashboardPage />,
+  '/monitoring': <MonitoringPage />,
   '/pekerjaan/saya': <WorkListPage mine />,
   '/pekerjaan': <WorkListPage />,
   '/kontrak': <AgreementListPage />,
