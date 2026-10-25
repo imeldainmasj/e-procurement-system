@@ -9,6 +9,8 @@ import { AgreementListPage } from '@/features/agreements/AgreementListPage';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { NotFoundPage } from '@/features/errors/NotFoundPage';
 import { ComingSoonPage } from '@/features/placeholder/ComingSoonPage';
+import { ImportBatchPage } from '@/features/imports/ImportBatchPage';
+import { ImportPage } from '@/features/imports/ImportPage';
 import { GeneralSettingsPage } from '@/features/settings/general/GeneralSettingsPage';
 import { MilestoneTemplatesPage } from '@/features/settings/milestone-templates/MilestoneTemplatesPage';
 import { OrganizationPage } from '@/features/settings/organization/OrganizationPage';
@@ -24,6 +26,7 @@ const PAGES: Record<string, ReactNode> = {
   '/pekerjaan': <WorkListPage />,
   '/kontrak': <AgreementListPage />,
   '/vendor': <VendorListPage />,
+  '/import': <ImportPage />,
   '/pengaturan/template-milestone': <MilestoneTemplatesPage />,
   '/pengaturan/pengguna': <UsersPage />,
   '/pengaturan/organisasi': <OrganizationPage />,
@@ -71,6 +74,14 @@ export const router = createBrowserRouter([
             element: (
               <RequireAccess access={{ feature: 'AGREEMENT' }}>
                 <AgreementDetailPage />
+              </RequireAccess>
+            ),
+          },
+          {
+            path: 'import/:batchId',
+            element: (
+              <RequireAccess access={{ feature: 'IMPORT' }}>
+                <ImportBatchPage />
               </RequireAccess>
             ),
           },

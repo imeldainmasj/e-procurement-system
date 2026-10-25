@@ -2,6 +2,7 @@ import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { logger } from './lib/logger.js';
 import { prisma } from './lib/prisma.js';
+import { recoverInterrupted } from './modules/imports/import.service.js';
 
 const app = createApp();
 
@@ -16,6 +17,9 @@ const server = app.listen(env.PORT, (error?: Error) => {
     );
     process.exit(1);
   }
+  recoverInterrupted().catch((err: unknown) =>
+    logger.error({ err }, 'Gagal memulihkan batch import yang terhenti'),
+  );
   logger.info(`SIPITA API berjalan di http://localhost:${env.PORT}/api/v1 (${env.NODE_ENV})`);
 });
 

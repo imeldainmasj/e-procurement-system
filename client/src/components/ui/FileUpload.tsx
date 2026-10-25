@@ -2,7 +2,12 @@ import { FileUp, X } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import { ALLOWED_UPLOAD_EXTENSIONS, formatFileSize } from '@sipita/shared';
 import { cn } from '@/utils/cn';
-import { MAX_UPLOAD_MB, validateUpload } from '@/utils/validateUpload';
+import {
+  MAX_IMPORT_MB,
+  MAX_UPLOAD_MB,
+  validateImportFile,
+  validateUpload,
+} from '@/utils/validateUpload';
 
 interface FileUploadProps {
   file: File | null;
@@ -11,10 +16,20 @@ interface FileUploadProps {
   disabled?: boolean;
   /** 0–100 while uploading. */
   progress?: number | null;
+  /** `xlsx`: Excel import file instead of a document attachment. */
+  kind?: 'attachment' | 'xlsx';
 }
 
 /** Drag-and-drop single file picker with type/size validation. */
-export function FileUpload({ file, onChange, error, disabled, progress }: FileUploadProps) {
+export function FileUpload({
+  file,
+  onChange,
+  error,
+  disabled,
+  progress,
+  kind = 'attachment',
+}: FileUploadProps) {
+  const xlsx = kind === 'xlsx';
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -22,7 +37,7 @@ export function FileUpload({ file, onChange, error, disabled, progress }: FileUp
 
   const pick = (picked: File | undefined) => {
     if (!picked) return;
-    const problem = validateUpload(picked);
+    const problem = xlsx ? validateImportFile(picked) : validateUpload(picked);
     setLocalError(problem);
     onChange(problem ? null : picked);
   };
@@ -79,8 +94,8 @@ export function FileUpload({ file, onChange, error, disabled, progress }: FileUp
             <span className="text-primary font-medium">Pilih file</span> atau seret ke sini
           </span>
           <span className="text-base-content/60 text-xs">
-            {ALLOWED_UPLOAD_EXTENSIONS.join(', ').toUpperCase().replaceAll('.', '')} · maks.{' '}
-            {MAX_UPLOAD_MB} MB
+            {xlsx ? 'XLSX' : ALLOWED_UPLOAD_EXTENSIONS.join(', ').toUpperCase().replaceAll('.', '')}{' '}
+            · maks. {xlsx ? MAX_IMPORT_MB : MAX_UPLOAD_MB} MB
           </span>
         </label>
       )}
@@ -89,7 +104,7 @@ export function FileUpload({ file, onChange, error, disabled, progress }: FileUp
         ref={inputRef}
         type="file"
         className="hidden"
-        accept={ALLOWED_UPLOAD_EXTENSIONS.join(',')}
+        accept={xlsx ? '.xlsx' : ALLOWED_UPLOAD_EXTENSIONS.join(',')}
         disabled={disabled}
         onChange={(e) => {
           pick(e.target.files?.[0]);

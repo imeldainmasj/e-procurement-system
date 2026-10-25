@@ -5,6 +5,7 @@ import { attachmentsRouter } from './modules/attachments/attachments.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { documentsRouter } from './modules/documents/documents.routes.js';
 import { healthRouter } from './modules/health/health.routes.js';
+import { importsRouter } from './modules/imports/import.routes.js';
 import { milestoneTemplatesRouter } from './modules/milestone-templates/milestone-templates.routes.js';
 import { notificationsRouter } from './modules/notifications/notifications.routes.js';
 import {
@@ -36,4 +37,5 @@ apiRouter.use('/milestone-templates', authenticate, milestoneTemplatesRouter);
 apiRouter.use('/works', authenticate, worksRouter);
 apiRouter.use('/works', authenticate, documentsRouter);
 apiRouter.use('/agreements', authenticate, agreementsRouter);
+apiRouter.use('/imports', authenticate, importsRouter);
 apiRouter.use('/procurement-rules', authenticate, procurementRulesRouter);

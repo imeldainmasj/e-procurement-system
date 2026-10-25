@@ -1,4 +1,4 @@
-import type { AuditAction } from '@sipita/shared';
+import type { AuditAction, AuditSource } from '@sipita/shared';
 import type { Prisma } from '../generated/prisma/client.js';
 import type { Actor } from '../utils/actor.js';
 import type { TxClient } from './prisma.js';
@@ -10,6 +10,9 @@ interface AuditEntry {
   entityId: string;
   before?: unknown;
   after?: unknown;
+  /** IMPORT entries carry their batch, so a rollback can find and undo them. */
+  source?: AuditSource;
+  importBatchId?: string;
 }
 
 /** Plain JSON copy (Dates → ISO strings, Decimals → strings). */
@@ -29,6 +32,8 @@ export async function writeAuditLog(db: TxClient, entry: AuditEntry): Promise<vo
       entityId: entry.entityId,
       before: toJson(entry.before),
       after: toJson(entry.after),
+      source: entry.source ?? 'APP',
+      importBatchId: entry.importBatchId ?? null,
     },
   });
 }

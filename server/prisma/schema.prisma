@@ -772,6 +772,13 @@ model ImportBatch {
   errorRows    Int          @default(0) @map("error_rows")
   committedAt  DateTime?    @map("committed_at")
   rolledBackAt DateTime?    @map("rolled_back_at")
+  /// Background step in progress (VALIDATING / COMMITTING / ROLLING_BACK); null when idle.
+  /// Large files are processed in the background so the upload request returns at once.
+  phase        String?
+  /// Why the last step failed (status FAILED, or a commit/rollback that was refused).
+  errorMessage String?      @map("error_message")
+  /// Summary of what a commit created/updated per sheet, for the batch page.
+  summary      Json?
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
 

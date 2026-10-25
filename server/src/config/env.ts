@@ -16,6 +16,7 @@ const envSchema = z.object({
   CLIENT_URL: z.url().default('http://localhost:5173'),
   UPLOAD_DIR: z.string().default('./uploads'),
   MAX_UPLOAD_MB: z.coerce.number().positive().default(10),
+  MAX_IMPORT_MB: z.coerce.number().positive().default(20),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().positive().default(587),
   SMTP_USER: z.string().optional(),

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { createReadStream, type ReadStream } from 'node:fs';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { env } from '../config/env.js';
 import { dayjs } from './dayjs.js';
@@ -24,6 +24,10 @@ export async function saveFile(buffer: Buffer, originalName: string): Promise<st
   await mkdir(path.dirname(full), { recursive: true });
   await writeFile(full, buffer, { flag: 'wx' });
   return relativePath;
+}
+
+export function readStoredFile(relativePath: string): Promise<Buffer> {
+  return readFile(absolute(relativePath));
 }
 
 export function openFile(relativePath: string): ReadStream {
