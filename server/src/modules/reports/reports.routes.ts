@@ -8,11 +8,11 @@ import {
   type ReportFilter,
 } from '@sipita/shared';
 import { z } from 'zod';
-import { dayjs } from '../../lib/dayjs.js';
 import { toXlsx } from '../../lib/excel.js';
 import { toPdf } from '../../lib/pdf.js';
 import { requirePermission } from '../../middleware/permission.js';
 import { validate } from '../../middleware/validate.js';
+import { sendDownload, XLSX_MIME } from '../../utils/export.js';
 import { sendSuccess } from '../../utils/response.js';
 import * as service from './reports.service.js';
 import type { ReportResult } from './reports.service.js';
@@ -31,19 +31,8 @@ async function respond<T>(req: Request, res: Response, name: string, result: Rep
     sendSuccess(res, result.data);
     return;
   }
-  const stamp = dayjs().tz().format('YYYYMMDD');
-  const file = `sipita-${name}-${stamp}.${format}`;
   const buffer = format === 'xlsx' ? await toXlsx(result.document) : await toPdf(result.document);
-  res
-    .status(200)
-    .type(
-      format === 'xlsx'
-        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        : 'application/pdf',
-    )
-    .setHeader('Content-Disposition', `attachment; filename="${file}"`)
-    .setHeader('Cache-Control', 'private, no-store')
-    .send(buffer);
+  sendDownload(res, name, format, format === 'xlsx' ? XLSX_MIME : 'application/pdf', buffer);
 }
 
 /** Validates the shared filters together with the report's own parameters. */

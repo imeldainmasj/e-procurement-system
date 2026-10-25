@@ -6,6 +6,8 @@ import {
   PROCUREMENT_TYPES,
   PROJECT_CATEGORIES,
   WORK_STATUSES,
+  type AuditAction,
+  type AuditSource,
   type Executor,
   type MilestoneStatus,
   type MilestoneType,
@@ -282,3 +284,28 @@ export interface AgreementOptionDto {
   vendorName: string;
   periodEnd: string;
 }
+
+/** One changed field of an audited row, already formatted for display. */
+export interface HistoryChangeDto {
+  field: string;
+  label: string;
+  before: string | null;
+  after: string | null;
+}
+
+/** Merged change history of a work (§8 GET /works/:id/history), newest first. */
+export type WorkHistoryItemDto =
+  | { kind: 'UPDATE'; id: string; createdAt: string; update: WorkUpdateDto }
+  | {
+      kind: 'AUDIT';
+      id: string;
+      createdAt: string;
+      user: Ref | null;
+      action: AuditAction;
+      source: AuditSource;
+      /** Model name, e.g. Work, Memo, PurchaseOrder. */
+      entity: string;
+      /** Document number or other short identification, e.g. a memo number. */
+      subject: string | null;
+      changes: HistoryChangeDto[];
+    };

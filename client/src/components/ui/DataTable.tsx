@@ -1,10 +1,21 @@
 import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  FileSpreadsheet,
+  Search,
+} from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { getErrorMessage } from '@/api/client';
+import { downloadFile } from '@/api/download.api';
 import type { ListParams } from '@/api/resource';
 import { useDebounce } from '@/hooks/useDebounce';
+import { toast } from '@/stores/toastStore';
 import { cn } from '@/utils/cn';
+import { downloadBlob } from '@/utils/download';
 import { EmptyState } from './EmptyState';
 
 const PAGE_SIZES = [10, 20, 50, 100];
@@ -24,6 +35,8 @@ interface DataTableProps<T> {
   filters?: ReactNode;
   emptyTitle?: string;
   getRowId?: (row: T) => string;
+  /** API path of the Excel export (e.g. `/works/export`); adds an Excel button using the current filters. */
+  exportPath?: string;
 }
 
 /** none → asc → desc → none */
@@ -47,7 +60,9 @@ export function DataTable<T>({
   filters,
   emptyTitle,
   getRowId,
+  exportPath,
 }: DataTableProps<T>) {
+  const [exporting, setExporting] = useState(false);
   const [searchInput, setSearchInput] = useState(params.search ?? '');
   const debouncedSearch = useDebounce(searchInput);
 
@@ -87,6 +102,33 @@ export function DataTable<T>({
         {isFetching && !isLoading && (
           <span className="loading loading-spinner loading-xs opacity-50" />
         )}
+        {exportPath && (
+          <button
+            type="button"
+            className="btn btn-sm btn-soft btn-primary ms-auto"
+            disabled={exporting}
+            onClick={async () => {
+              setExporting(true);
+              try {
+                // All rows matching the filters, not only the current page.
+                const { page: _page, limit: _limit, ...filters } = params;
+                const { blob, fileName } = await downloadFile(exportPath, filters, 'sipita.xlsx');
+                downloadBlob(blob, fileName);
+              } catch (err) {
+                toast.error(getErrorMessage(err));
+              } finally {
+                setExporting(false);
+              }
+            }}
+          >
+            {exporting ? (
+              <span className="loading loading-spinner loading-xs" />
+            ) : (
+              <FileSpreadsheet className="size-4" />
+            )}
+            Excel
+          </button>
+        )}
       </div>
 
       {error ? (
@@ -119,7 +161,7 @@ export function DataTable<T>({
                         {canSort ? (
                           <button
                             type="button"
-                            className="flex items-center gap-1 hover:underline"
+                            className="flex items-center gap-1 uppercase hover:underline"
                             onClick={() =>
                               onParamsChange({ sort: nextSort(columnId, params.sort) })
                             }

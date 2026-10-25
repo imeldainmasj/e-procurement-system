@@ -1,12 +1,4 @@
-import {
-  ArrowLeft,
-  ArrowRight,
-  MessageSquarePlus,
-  Paperclip,
-  Pencil,
-  Trash2,
-  UserRoundCog,
-} from 'lucide-react';
+import { ArrowLeft, MessageSquarePlus, Pencil, Trash2, UserRoundCog } from 'lucide-react';
 import { type ReactNode, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -33,13 +25,14 @@ import { useUserOptions } from '@/hooks/useMasterData';
 import { useSettings } from '@/hooks/useSettings';
 import { useWork, useWorkMutations, useWorkUpdates } from '@/hooks/useWorks';
 import { toast } from '@/stores/toastStore';
-import { downloadAttachment } from '@/utils/attachments';
+import { cn } from '@/utils/cn';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate, formatDateTime } from '@/utils/formatDate';
 import { MilestoneEditModal } from './components/MilestoneEditModal';
 import { DocumentsSection } from './documents/DocumentsSection';
 import { TAB_FOR_MILESTONE, type DocumentTab } from './documents/documentTabs';
 import { UpdateProgressModal } from './components/UpdateProgressModal';
+import { UpdateNote, WorkHistory } from './components/WorkHistory';
 import { WorkFormModal } from './components/WorkFormModal';
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -122,6 +115,7 @@ function Summary({ work }: { work: WorkDetailDto }) {
 }
 
 function ProgressLog({ work }: { work: WorkDetailDto }) {
+  const [tab, setTab] = useState<'log' | 'history'>('log');
   const [page, setPage] = useState(1);
   const updates = useWorkUpdates(work.id, page);
   const [adding, setAdding] = useState(false);
@@ -129,8 +123,32 @@ function ProgressLog({ work }: { work: WorkDetailDto }) {
 
   return (
     <SectionCard
-      title="Log Update"
-      description="Catatan progres tidak dapat diubah; koreksi ditulis sebagai catatan baru."
+      title={
+        <div role="tablist" className="tabs tabs-border">
+          {(
+            [
+              ['log', 'Log Update'],
+              ['history', 'Riwayat Perubahan'],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={tab === key}
+              className={cn('tab px-2 text-sm font-semibold', tab === key && 'tab-active')}
+              onClick={() => setTab(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      }
+      description={
+        tab === 'log'
+          ? 'Catatan progres tidak dapat diubah; koreksi ditulis sebagai catatan baru.'
+          : 'Catatan progres dan setiap perubahan data pekerjaan & dokumennya (termasuk dari import).'
+      }
       actions={
         work.access.canEdit && (
           <button
@@ -143,7 +161,9 @@ function ProgressLog({ work }: { work: WorkDetailDto }) {
         )
       }
     >
-      {updates.isPending ? (
+      {tab === 'history' ? (
+        <WorkHistory workId={work.id} />
+      ) : updates.isPending ? (
         <div className="skeleton h-32 w-full" />
       ) : updates.data?.data.length === 0 ? (
         <EmptyState title="Belum ada catatan progres" />
@@ -156,38 +176,14 @@ function ProgressLog({ work }: { work: WorkDetailDto }) {
                 <span className="bg-primary block size-2 rounded-full" />
               </div>
               <div className="timeline-end mb-4 w-full">
-                <div className="text-base-content/60 text-xs">
-                  {formatDateTime(u.createdAt)} · {u.author.name}
-                  {u.milestone && ` · ${u.milestone.label}`}
-                </div>
-                {u.statusFrom && u.statusTo && (
-                  <div className="mt-0.5 flex items-center gap-1 text-xs">
-                    <StatusBadge status={u.statusFrom} kind="milestone" />
-                    <ArrowRight className="size-3" />
-                    <StatusBadge status={u.statusTo} kind="milestone" />
-                  </div>
-                )}
-                <p className="text-sm whitespace-pre-line">{u.note}</p>
-                {u.attachment && (
-                  <button
-                    type="button"
-                    className="link link-primary flex items-center gap-1 text-xs"
-                    onClick={() =>
-                      downloadAttachment(u.attachment!.id, u.attachment!.fileName).catch((err) =>
-                        toast.error(getErrorMessage(err)),
-                      )
-                    }
-                  >
-                    <Paperclip className="size-3" /> {u.attachment.fileName}
-                  </button>
-                )}
+                <UpdateNote update={u} />
               </div>
               {i < all.length - 1 && <hr className="bg-base-300" />}
             </li>
           ))}
         </ul>
       )}
-      {totalPages > 1 && (
+      {tab === 'log' && totalPages > 1 && (
         <div className="join mt-2">
           <button
             type="button"

@@ -136,7 +136,7 @@ export function ReportShell({
           </div>
         }
       />
-      <div className="card flex flex-wrap items-center gap-2 p-3">
+      <div className="card flex-row flex-wrap items-center gap-2 p-3">
         {fields.includes('yearRange') && (
           <>
             <Select

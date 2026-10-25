@@ -11,7 +11,10 @@ import type {
 } from '@sipita/shared';
 import type { z } from 'zod';
 import { getActor } from '../../utils/actor.js';
+import { exportPage, sendXlsx } from '../../utils/export.js';
 import { sendSuccess } from '../../utils/response.js';
+import { workHistory } from './work-history.js';
+import { workListDocument } from './works.export.js';
 import * as service from './works.service.js';
 
 const idOf = (req: Request) => (req.params as IdParam).id;
@@ -27,6 +30,23 @@ export const mine: RequestHandler = async (req, res) => {
   const { data, meta } = await service.list({ ...q, picId: getActor(req).userId });
   sendSuccess(res, data, meta);
 };
+
+/** Excel export of the list (or of the current user's works) with the same filters and sort. */
+export const exportList =
+  (mine: boolean): RequestHandler =>
+  async (req, res) => {
+    const q = req.query as unknown as WorkListQuery;
+    const { data } = await service.list({
+      ...q,
+      ...exportPage,
+      ...(mine && { picId: getActor(req).userId }),
+    });
+    await sendXlsx(
+      res,
+      mine ? 'pekerjaan-saya' : 'pekerjaan',
+      workListDocument(mine ? 'Pekerjaan Saya' : 'Daftar Pekerjaan', data),
+    );
+  };
 
 export const get: RequestHandler = async (req, res) => {
   sendSuccess(res, await service.get(idOf(req), getActor(req)));
@@ -70,6 +90,14 @@ export const updateMilestone: RequestHandler = async (req, res) => {
 
 export const listUpdates: RequestHandler = async (req, res) => {
   const { data, meta } = await service.listUpdates(
+    idOf(req),
+    req.query as unknown as { page: number; limit: number },
+  );
+  sendSuccess(res, data, meta);
+};
+
+export const history: RequestHandler = async (req, res) => {
+  const { data, meta } = await workHistory(
     idOf(req),
     req.query as unknown as { page: number; limit: number },
   );

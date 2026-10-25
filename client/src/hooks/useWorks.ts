@@ -32,6 +32,15 @@ export function useWorkUpdates(id: string, page: number) {
   });
 }
 
+export function useWorkHistory(id: string, page: number, enabled: boolean) {
+  return useQuery({
+    queryKey: [KEY, id, 'history', page],
+    queryFn: () => worksApi.history(id, page),
+    placeholderData: keepPreviousData,
+    enabled,
+  });
+}
+
 export function useRuleEvaluation(amountIdr: number | null, previousPurchaseAmount: number | null) {
   return useQuery({
     queryKey: ['procurement-rules', amountIdr, previousPurchaseAmount],

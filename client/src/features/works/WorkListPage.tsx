@@ -189,6 +189,7 @@ export function WorkListPage({ mine = false }: { mine?: boolean }) {
         isLoading={works.isPending}
         isFetching={works.isFetching}
         error={works.error}
+        exportPath={mine ? '/works/mine/export' : '/works/export'}
         searchPlaceholder="Cari kode, judul, atau vendor..."
         getRowId={(w) => w.id}
         emptyTitle={mine ? 'Belum ada pekerjaan dengan Anda sebagai PIC' : undefined}

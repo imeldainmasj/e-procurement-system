@@ -18,7 +18,8 @@ interface YearValueChartProps {
 export function YearValueChart({ data, onSelectYear, height = 280 }: YearValueChartProps) {
   return (
     <figure>
-      <div style={{ height }} aria-hidden>
+      {/* daisyUI centres `.card figure` with flex, so the chart must claim the full width. */}
+      <div className="w-full" style={{ height }} aria-hidden>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
             <CartesianGrid {...gridProps} />

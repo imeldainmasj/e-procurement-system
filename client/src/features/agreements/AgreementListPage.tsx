@@ -131,6 +131,7 @@ export function AgreementListPage() {
         isLoading={agreements.isPending}
         isFetching={agreements.isFetching}
         error={agreements.error}
+        exportPath="/agreements/export"
         searchPlaceholder="Cari no. agreement, judul, vendor..."
         getRowId={(a) => a.id}
         filters={

@@ -90,6 +90,7 @@ export function VendorListPage() {
         isLoading={vendors.isPending}
         isFetching={vendors.isFetching}
         error={vendors.error}
+        exportPath="/vendors/export"
         searchPlaceholder="Cari kode, nama, NPWP, PIC..."
         getRowId={(v) => v.id}
       />

@@ -130,6 +130,14 @@
 }
 
 /*
+ * daisyUI 5.7: `.timeline-vertical.timeline-snap-icon > li` comes after the compact rule with
+ * the same specificity and resets the first column to 1fr, centring compact timelines.
+ */
+.timeline-compact.timeline-vertical.timeline-snap-icon > li {
+  --timeline-col-start: 0;
+}
+
+/*
  * Chart tokens (CLAUDE.md §8): series follow theme colours in the order
  * primary → success → warning → secondary → info, so charts switch with the theme.
  */

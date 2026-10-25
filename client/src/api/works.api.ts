@@ -10,6 +10,7 @@ import type {
   WorkCreateInput,
   WorkDetailDto,
   WorkListItemDto,
+  WorkHistoryItemDto,
   WorkUpdateDto,
   WorkUpdateInput,
 } from '@sipita/shared';
@@ -57,6 +58,11 @@ export const worksApi = {
   async updates(id: string, page = 1): Promise<ListResult<WorkUpdateDto>> {
     return listOf(
       await api.get<ApiSuccess<WorkUpdateDto[]>>(`/works/${id}/updates`, { params: { page } }),
+    );
+  },
+  async history(id: string, page = 1): Promise<ListResult<WorkHistoryItemDto>> {
+    return listOf(
+      await api.get<ApiSuccess<WorkHistoryItemDto[]>>(`/works/${id}/history`, { params: { page } }),
     );
   },
   async addUpdate(

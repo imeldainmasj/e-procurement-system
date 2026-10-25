@@ -14,6 +14,12 @@ vendorsRouter.get(
   validate({ query: vendorListQuerySchema }),
   controller.list,
 );
+vendorsRouter.get(
+  '/export',
+  requirePermission('VENDOR', 'view'),
+  validate({ query: vendorListQuerySchema }),
+  controller.exportList,
+);
 vendorsRouter.get('/:id', requirePermission('VENDOR', 'view'), byId, controller.get);
 vendorsRouter.post(
   '/',

@@ -1,5 +1,6 @@
 import type {
   AgreementStatus,
+  AuditAction,
   AgreementType,
   Executor,
   Feature,
@@ -152,4 +153,28 @@ export const IMPORT_STATUS_LABELS: Record<ImportStatus, string> = {
   COMMITTED: 'Tersimpan',
   ROLLED_BACK: 'Dibatalkan',
   FAILED: 'Gagal',
+};
+
+export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
+  CREATE: 'Dibuat',
+  UPDATE: 'Diubah',
+  DELETE: 'Dihapus',
+  STATUS_CHANGE: 'Status diubah',
+  RESET_PASSWORD: 'Reset password',
+  REASSIGN: 'PIC diganti',
+  ROLLBACK: 'Rollback import',
+};
+
+/** Audited models shown in a work's change history. */
+export const AUDIT_ENTITY_LABELS: Record<string, string> = {
+  Work: 'Pekerjaan',
+  WorkMilestone: 'Milestone',
+  Memo: 'Memo / MoA',
+  Rfq: 'RFQ & LoA',
+  PvpForum: 'PVP Forum',
+  PvpApproval: 'Approval direktur',
+  PurchaseOrder: 'Purchase Order',
+  PoPaymentTerm: 'Term of payment',
+  Agreement: 'Agreement',
+  Addendum: 'Addendum',
 };

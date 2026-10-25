@@ -703,7 +703,7 @@ export async function updateMilestone(
 
 // ─── Progress log ────────────────────────────────────────────────────────────
 
-const updateSelect = {
+export const updateSelect = {
   id: true,
   note: true,
   statusFrom: true,
@@ -717,7 +717,7 @@ const updateSelect = {
 
 type UpdateRecord = Prisma.WorkUpdateGetPayload<{ select: typeof updateSelect }>;
 
-function toUpdateDto(u: UpdateRecord): WorkUpdateDto {
+export function toUpdateDto(u: UpdateRecord): WorkUpdateDto {
   return {
     id: u.id,
     note: u.note,

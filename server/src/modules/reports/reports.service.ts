@@ -614,6 +614,29 @@ export async function compliance(
 
 // ─── 6. Kinerja tim ──────────────────────────────────────────────────────────
 
+/**
+ * Days each completed milestone took: from the completion of the previous stage (the latest
+ * DONE milestone with a lower sequence, so parallel branches and N/A PVP are handled) to its
+ * own completion; the first stage falls back to its explicit start. `startedAt` alone is not
+ * used because a milestone completed by its document starts and ends on the document date.
+ * Out-of-order (negative) durations from imported data are left out.
+ */
+function stageDurations(range: ReportFilter): Prisma.Sql {
+  return Prisma.sql`
+    SELECT * FROM (
+      SELECT w.pic_id, m.type, m.executor,
+             EXTRACT(EPOCH FROM (m.completed_at - COALESCE(prev.done, m.started_at))) / 86400 AS days
+      FROM work_milestones m
+      JOIN works w ON w.id = m.work_id
+      LEFT JOIN LATERAL (
+        SELECT MAX(p.completed_at) AS done FROM work_milestones p
+        WHERE p.work_id = m.work_id AND p.status = 'DONE' AND p.sequence < m.sequence
+      ) prev ON true
+      WHERE ${workSql(range)} AND m.status = 'DONE' AND m.completed_at IS NOT NULL
+    ) x
+    WHERE days IS NOT NULL AND days >= 0`;
+}
+
 export async function teamPerformance(f: ReportFilter): Promise<ReportResult<TeamPerformanceDto>> {
   const settings = await getSettings();
   const range: ReportFilter =
@@ -624,7 +647,7 @@ export async function teamPerformance(f: ReportFilter): Promise<ReportResult<Tea
   const [users, completed, active, late, stageRows, splitRows] = await Promise.all([
     prisma.user.findMany({
       where: { ...live, isActive: true },
-      select: { id: true, name: true, jobLevel: true },
+      select: { id: true, name: true, jobLevel: true, isAdmin: true },
       orderBy: { name: 'asc' },
     }),
     prisma.work.groupBy({
@@ -650,20 +673,13 @@ export async function teamPerformance(f: ReportFilter): Promise<ReportResult<Tea
     prisma.$queryRaw<
       { type: MilestoneType; executor: Executor; avg_days: number; samples: bigint }[]
     >`
-      SELECT m.type, m.executor,
-             AVG(EXTRACT(EPOCH FROM (m.completed_at - m.started_at)) / 86400)::float AS avg_days,
-             COUNT(*) AS samples
-      FROM work_milestones m JOIN works w ON w.id = m.work_id
-      WHERE ${workSql(range)} AND m.status = 'DONE' AND m.started_at IS NOT NULL
-        AND m.completed_at IS NOT NULL AND m.completed_at >= m.started_at
-      GROUP BY m.type, m.executor`,
+      WITH d AS (${stageDurations(range)})
+      SELECT type, executor, AVG(days)::float AS avg_days, COUNT(*) AS samples
+      FROM d GROUP BY type, executor`,
     prisma.$queryRaw<{ pic_id: string; outside: boolean; days: number }[]>`
-      SELECT w.pic_id, (m.executor <> 'IT') AS outside,
-             SUM(EXTRACT(EPOCH FROM (m.completed_at - m.started_at)) / 86400)::float AS days
-      FROM work_milestones m JOIN works w ON w.id = m.work_id
-      WHERE ${workSql(range)} AND m.status = 'DONE' AND m.started_at IS NOT NULL
-        AND m.completed_at IS NOT NULL AND m.completed_at >= m.started_at
-      GROUP BY w.pic_id, (m.executor <> 'IT')`,
+      WITH d AS (${stageDurations(range)})
+      SELECT pic_id, (executor <> 'IT') AS outside, SUM(days)::float AS days
+      FROM d GROUP BY pic_id, (executor <> 'IT')`,
   ]);
 
   const count = (rows: { picId: string; _count: { _all: number } }[], id: string) =>
@@ -671,7 +687,8 @@ export async function teamPerformance(f: ReportFilter): Promise<ReportResult<Tea
   const days = (id: string, outside: boolean) =>
     round2(splitRows.find((r) => r.pic_id === id && r.outside === outside)?.days ?? 0);
   const staff = users
-    .map((user) => ({
+    .map(({ isAdmin, ...user }) => ({
+      isAdmin,
       user,
       active: count(active, user.id),
       completed: count(completed, user.id),
@@ -679,9 +696,13 @@ export async function teamPerformance(f: ReportFilter): Promise<ReportResult<Tea
       itDays: days(user.id, false),
       outsideDays: days(user.id, true),
     }))
+    // Idle staff are listed (workload planning); the admin account only when it has data.
     .filter(
-      (s) => s.active + s.completed + s.itDays + s.outsideDays > 0 || s.user.jobLevel === 'STAFF',
-    );
+      (s) =>
+        s.active + s.completed + s.itDays + s.outsideDays > 0 ||
+        (s.user.jobLevel === 'STAFF' && !s.isAdmin),
+    )
+    .map(({ isAdmin: _isAdmin, ...s }) => s);
   const order = Object.keys(MILESTONE_TYPE_LABELS);
   const stages = stageRows
     .map((r) => ({

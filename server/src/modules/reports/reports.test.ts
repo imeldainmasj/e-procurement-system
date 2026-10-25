@@ -93,6 +93,17 @@ async function setup() {
         startedAt: day(-20),
         completedAt: day(-5),
       },
+      {
+        // Completed by its document: starts and ends on the same date.
+        workId: active.id,
+        type: 'MOA_COST',
+        sequence: 6,
+        executor: 'IT',
+        status: 'DONE',
+        prerequisites: [],
+        startedAt: day(-1),
+        completedAt: day(-1),
+      },
     ],
   });
   for (const [no, end] of [
@@ -203,9 +214,10 @@ describe('reports', () => {
     const { headers } = await setup();
     const d = (await get(headers, 'team-performance?yearFrom=2015&yearTo=2025')).body.data;
     const andi = d.staff.find((s: { user: { name: string } }) => s.user.name === 'Andi');
-    expect(andi).toMatchObject({ active: 1, completed: 4, itDays: 10, outsideDays: 15 });
+    expect(andi).toMatchObject({ active: 1, completed: 4, itDays: 14, outsideDays: 15 });
     expect(d.stages).toEqual([
       expect.objectContaining({ type: 'MEMO', avgDays: 10, samples: 1 }),
+      expect.objectContaining({ type: 'MOA_COST', avgDays: 4, samples: 1 }),
       expect.objectContaining({ type: 'LOA', executor: 'OTHER_TEAM', avgDays: 15 }),
     ]);
   });

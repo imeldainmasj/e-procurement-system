@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import {
+  AGREEMENT_STATUS_LABELS,
+  AGREEMENT_TYPE_LABELS,
   addendumInputSchema,
   agreementInputSchema,
   agreementListQuerySchema,
@@ -14,6 +16,7 @@ import {
 import { requirePermission } from '../../middleware/permission.js';
 import { validate } from '../../middleware/validate.js';
 import { getActor } from '../../utils/actor.js';
+import { exportPage, sendXlsx } from '../../utils/export.js';
 import { sendSuccess } from '../../utils/response.js';
 import * as service from './agreements.service.js';
 
@@ -46,6 +49,59 @@ agreementsRouter.get(
       getActor(req),
     );
     sendSuccess(res, data, meta);
+  },
+);
+agreementsRouter.get(
+  '/export',
+  canView,
+  validate({ query: agreementListQuerySchema }),
+  async (req, res) => {
+    const q = req.query as unknown as AgreementListQuery;
+    const { data } = await service.list({ ...q, ...exportPage }, getActor(req));
+    await sendXlsx(res, 'kontrak', {
+      title: 'Daftar Kontrak',
+      filters: [],
+      tables: [
+        {
+          columns: [
+            { key: 'agreementNo', label: 'No. Agreement', width: 22 },
+            { key: 'title', label: 'Judul', width: 40 },
+            { key: 'type', label: 'Jenis', width: 10 },
+            { key: 'vendor', label: 'Vendor', width: 28 },
+            { key: 'pic', label: 'PIC', width: 20 },
+            { key: 'work', label: 'Pekerjaan', width: 15 },
+            { key: 'poNo', label: 'No. PO', width: 16 },
+            { key: 'periodStart', label: 'Mulai', kind: 'date', width: 12 },
+            { key: 'periodEnd', label: 'Berakhir', kind: 'date', width: 12 },
+            { key: 'effectiveEnd', label: 'Berakhir (+Addendum)', kind: 'date', width: 14 },
+            { key: 'daysLeft', label: 'Sisa Hari', kind: 'int', width: 10 },
+            { key: 'currency', label: 'Mata Uang', width: 10 },
+            { key: 'amount', label: 'Nilai', kind: 'decimal', width: 18 },
+            { key: 'amountIdr', label: 'Nilai (IDR)', kind: 'money', width: 20 },
+            { key: 'addendums', label: 'Addendum', kind: 'int', width: 10 },
+            { key: 'status', label: 'Status', width: 16 },
+          ],
+          rows: data.map((a) => ({
+            agreementNo: a.agreementNo,
+            title: a.title,
+            type: AGREEMENT_TYPE_LABELS[a.agreementType],
+            vendor: a.vendor.name,
+            pic: a.pic.name,
+            work: a.work.code,
+            poNo: a.po.poNo,
+            periodStart: a.periodStart,
+            periodEnd: a.periodEnd,
+            effectiveEnd: a.effectivePeriodEnd,
+            daysLeft: a.daysLeft,
+            currency: a.currency,
+            amount: a.amount,
+            amountIdr: a.amountIdr,
+            addendums: a.addendums.length,
+            status: AGREEMENT_STATUS_LABELS[a.status],
+          })),
+        },
+      ],
+    });
   },
 );
 agreementsRouter.get('/:id', canView, byId, async (req, res) => {

@@ -32,6 +32,18 @@ export const worksRouter = Router();
 
 worksRouter.get('/', canView, validate({ query: workListQuerySchema }), controller.list);
 worksRouter.get('/mine', canView, validate({ query: workListQuerySchema }), controller.mine);
+worksRouter.get(
+  '/export',
+  canView,
+  validate({ query: workListQuerySchema }),
+  controller.exportList(false),
+);
+worksRouter.get(
+  '/mine/export',
+  canView,
+  validate({ query: workListQuerySchema }),
+  controller.exportList(true),
+);
 worksRouter.post(
   '/',
   requirePermission('WORK', 'create'),
@@ -64,6 +76,12 @@ worksRouter.get(
   canView,
   validate({ params: idParamSchema, query: pageQuery }),
   controller.listUpdates,
+);
+worksRouter.get(
+  '/:id/history',
+  canView,
+  validate({ params: idParamSchema, query: pageQuery }),
+  controller.history,
 );
 // Multipart: `note`, `milestoneId` and an optional `file`; multer runs before validation.
 worksRouter.post(
